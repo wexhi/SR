@@ -46,20 +46,20 @@ void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, MOTOR_R_IN2_Pin|XC_Pin|MOTOR_L_IN2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, XC_Pin|BEEP_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, MOTOR_R_IN2_Pin|XCE9_Pin|MOTOR_L_IN2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GS_Pin|RQS_Pin|LQS_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, LED0_Pin|LED1_Pin|CSN_24L01_Pin|CE_24L01_Pin, GPIO_PIN_SET);
@@ -70,8 +70,15 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(IRQ_HW_L_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : MOTOR_R_IN2_Pin XC_Pin MOTOR_L_IN2_Pin */
-  GPIO_InitStruct.Pin = MOTOR_R_IN2_Pin|XC_Pin|MOTOR_L_IN2_Pin;
+  /*Configure GPIO pins : XC_Pin BEEP_Pin */
+  GPIO_InitStruct.Pin = XC_Pin|BEEP_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : MOTOR_R_IN2_Pin XCE9_Pin MOTOR_L_IN2_Pin */
+  GPIO_InitStruct.Pin = MOTOR_R_IN2_Pin|XCE9_Pin|MOTOR_L_IN2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -95,13 +102,6 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : BEEP_Pin */
-  GPIO_InitStruct.Pin = BEEP_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(BEEP_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED0_Pin LED1_Pin */
   GPIO_InitStruct.Pin = LED0_Pin|LED1_Pin;

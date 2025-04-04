@@ -59,12 +59,14 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define IRQ_HW_L_Pin GPIO_PIN_5
 #define IRQ_HW_L_GPIO_Port GPIOE
+#define XC_Pin GPIO_PIN_15
+#define XC_GPIO_Port GPIOC
 #define MOTOR_R_IN2_Pin GPIO_PIN_7
 #define MOTOR_R_IN2_GPIO_Port GPIOE
 #define MOTOR_R_IN1N_Pin GPIO_PIN_8
 #define MOTOR_R_IN1N_GPIO_Port GPIOE
-#define XC_Pin GPIO_PIN_9
-#define XC_GPIO_Port GPIOE
+#define XCE9_Pin GPIO_PIN_9
+#define XCE9_GPIO_Port GPIOE
 #define MOTOR_L_IN2_Pin GPIO_PIN_12
 #define MOTOR_L_IN2_GPIO_Port GPIOE
 #define MOTOR_L_IN1_Pin GPIO_PIN_13
