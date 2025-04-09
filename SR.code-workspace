@@ -25,10 +25,10 @@
             "editor.tabSize": 4,
             "editor.autoIndent": "advanced"
         },
-        "cortex-debug.armToolchainPath": "/usr/bin",
-        "cortex-debug.openocdPath": "/usr/bin/openocd",
-        "stm32-for-vscode.openOCDPath": "/usr/bin/openocd",
-        "stm32-for-vscode.armToolchainPath": "/usr/bin"
+        "cortex-debug.armToolchainPath": "C:\\Users\\wexhi\\.eide\\tools\\gcc_arm\\bin",
+        "cortex-debug.openocdPath": "C:\\Users\\wexhi\\.eide\\tools\\openocd_7a1adfbec_mingw32\\bin\\openocd.EXE",
+        "stm32-for-vscode.openOCDPath": "C:\\Users\\wexhi\\.eide\\tools\\openocd_7a1adfbec_mingw32\\bin\\openocd.EXE",
+        "stm32-for-vscode.armToolchainPath": "C:\\Users\\wexhi\\.eide\\tools\\gcc_arm\\bin"
     },
     "extensions": {
         "recommendations": [
