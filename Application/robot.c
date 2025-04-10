@@ -1,5 +1,8 @@
 #include "robot.h"
 #include "robot_task.h"
+#include "robot_def.h"
+#include "robot_cmd.h"
+#include "chassis.h"
 
 #include "bsp_init.h"
 #include "LED.h"
@@ -20,13 +23,17 @@ void Robot_Init(void)
     // Initialize the BSP layer
     BSPInit();
 
+    // Initialize the Application layer
+    RobotCMDInit();
+    ChassisInit(); // Initialize the chassis application
+
     // Initialize the FreeRTOS tasks
     OSTaskInit();
 
     __enable_irq(); // Enable interrupts after initialization
 }
 
-static int count = 0; 
+static int count = 0;
 
 /**
  * @brief The task entry point for the robot.
@@ -35,10 +42,6 @@ static int count = 0;
 void RobotTask(void)
 {
     count++;
-    if (count > 1000)
-    {
-        count = 0;
-        LED_LEFT_TOGGLE; // Toggle LED0 every 1000 iterations
-    }
-    LED_RIGHT_ON;
+    RobotCMDTask(); // Call the robot command task function here
+    ChassisTask();  // Call the chassis task function here
 }

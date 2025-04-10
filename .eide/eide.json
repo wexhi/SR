@@ -89,7 +89,10 @@
           "Module/message_center",
           "Module",
           "Module/LED",
-          "Module/key"
+          "Module/key",
+          "BSP/GPIO",
+          "Application/chassis",
+          "Module/LED/led_task"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"
