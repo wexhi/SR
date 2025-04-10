@@ -87,7 +87,9 @@
           "BSP/USART",
           "Application/cmd",
           "Module/message_center",
-          "Module"
+          "Module",
+          "Module/LED",
+          "Module/key"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"
