@@ -1,9 +1,12 @@
 #include "led_task.h"
 #include "led.h"
-
 #include "message_center.h"
 
+#include "robot_def.h"
+
 static LED_Instance *led_r, *led_l;
+static Chassis_Ctrl_Cmd_s cmd_recv; // The command to receive from the robot_cmd
+static Subscriber_t *led_subscriber = NULL;
 
 void LEDInit(void)
 {
@@ -25,8 +28,12 @@ void LEDInit(void)
     led_config.gpio_config.GPIO_Pin = LED1_Pin;
 
     led_l = LEDRegister(&led_config);
+    // Register the LED task with the message center
+    led_subscriber = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
 }
 
 void LEDTask(void)
 {
+    // Get the command from the robot_cmd
+    SubGetMessage(led_subscriber, &cmd_recv);
 }
