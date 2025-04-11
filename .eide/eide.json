@@ -92,7 +92,14 @@
           "Module/key",
           "BSP/GPIO",
           "Application/chassis",
-          "Module/LED/led_task"
+          "Module/LED/led_task",
+          "Module/motor",
+          "Module/motor/wheelmotor",
+          "Module/algorithm",
+          "BSP/CAN",
+          "Module/daemon",
+          "BSP/PWM",
+          "BSP/ENCODER"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"

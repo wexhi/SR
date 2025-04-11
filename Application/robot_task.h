@@ -18,9 +18,11 @@
 
 #include "robot.h"
 #include "led_task.h"
+#include "motor_task.h"
 
 osThreadId_t StartRobotTaskHandle;
 osThreadId_t StartLEDTaskHandle;
+osThreadId_t StartMotorTaskHandle;
 
 const osThreadAttr_t StartRobotTask_attributes = {
     .name       = "StartRobotTask",
@@ -32,9 +34,15 @@ const osThreadAttr_t StartLEDTask_attributes = {
     .stack_size = 128 * 4, // Multiply by 4 to convert to bytes
     .priority   = (osPriority_t)osPriorityNormal,
 };
+const osThreadAttr_t StartMotorTask_attributes = {
+    .name       = "StartMotorTask",
+    .stack_size = 1024 * 4, // Multiply by 4 to convert to bytes
+    .priority   = (osPriority_t)osPriorityNormal,
+};
 
 void StartRobotTask(void *argument);
 void StartLEDTask(void *argument);
+void StartMotorTask(void *argument);
 
 /**
  * @brief Intialize the FreeRTOS tasks, all tasks should be created here.
@@ -44,6 +52,7 @@ void OSTaskInit(void)
 {
     StartRobotTaskHandle = osThreadNew(StartRobotTask, NULL, &StartRobotTask_attributes);
     StartLEDTaskHandle   = osThreadNew(StartLEDTask, NULL, &StartLEDTask_attributes);
+    StartMotorTaskHandle = osThreadNew(StartMotorTask, NULL, &StartMotorTask_attributes);
 }
 
 /**
@@ -80,4 +89,22 @@ void StartLEDTask(void *argument)
         osDelay(10);
     }
     /* USER CODE END StartLEDTask */
+}
+
+/**
+ * @brief The task for the motor,
+ * this task will be used to control the motor and read the encoder.
+ *
+ * @param argument
+ */
+void StartMotorTask(void *argument)
+{
+
+    /* USER CODE BEGIN StartMotorTask */
+    /* Infinite loop */
+    for (;;) {
+        MotorControlTask();
+        osDelay(2);
+    }
+    /* USER CODE END StartMotorTask */
 }
