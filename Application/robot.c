@@ -25,9 +25,9 @@ void Robot_Init(void)
 
     // Initialize the Application layer
     RobotCMDInit();
-    // ChassisInit(); // Initialize the chassis application
-    HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL); // Start the encoder timer
-    HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL); // Start the encoder timer
+    ChassisInit(); // Initialize the chassis application
+    // HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL); // Start the encoder timer
+    // HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL); // Start the encoder timer
 
     // Initialize the FreeRTOS tasks
     OSTaskInit();
@@ -35,7 +35,7 @@ void Robot_Init(void)
     __enable_irq(); // Enable interrupts after initialization
 }
 
-static int32_t test2, test5;
+// static int32_t test2, test5;
 /**
  * @brief The task entry point for the robot.
  *
@@ -43,7 +43,7 @@ static int32_t test2, test5;
 void RobotTask(void)
 {
     RobotCMDTask(); // Call the robot command task function here
-    // ChassisTask();  // Call the chassis task function here
-    test2 = __HAL_TIM_GET_COUNTER(&htim2);
-    test5 = __HAL_TIM_GET_COUNTER(&htim5);
+    ChassisTask();  // Call the chassis task function here
+    // test2 = __HAL_TIM_GET_COUNTER(&htim2);
+    // test5 = __HAL_TIM_GET_COUNTER(&htim5);
 }
