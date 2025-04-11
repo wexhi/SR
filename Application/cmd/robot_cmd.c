@@ -3,9 +3,11 @@
 
 #include "key.h"
 #include "message_center.h"
+#include "miniPC_process.h"
 static Robot_Status_e robot_status = ROBOT_STOP; // The status of the robot
 
 static KEY_Instance *key_l, *key_r; // The key instance for left and right
+static Vision_Recv_s *vision_ctrl;  // The vision receive data
 
 static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // The command to send to the robot chassis
 static Chassis_Upload_Data_s chassis_fetch_data; // The data to fetch from the robot chassis
@@ -36,6 +38,8 @@ void RobotCMDInit(void)
     key_config.gpio_config.GPIO_Pin = KEY_R_Pin;
     key_r                           = KEYRegister(&key_config);
 
+    vision_ctrl = VisionInit(&huart1); // 初始化视觉控制
+
     // Register the command topic for the robot chassis
     chassis_cmd_pub   = PubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_fetch_sub = SubRegister("chassis_fetch", sizeof(Chassis_Upload_Data_s));
@@ -53,6 +57,7 @@ void RobotCMDTask(void)
 
     PubPushMessage(chassis_cmd_pub, (void *)&chassis_cmd_send); // Publish the command to the robot chassis
     // TODO: Publish the data to the PC
+    VisionSend(); // Send the data to the PC
 }
 
 static void RobotModeSet(KEY_Instance *key)
@@ -63,7 +68,7 @@ static void RobotModeSet(KEY_Instance *key)
             RobotStop();
             break;
         default:
-            robot_status                  = ROBOT_READY;          // Set the robot status to run
+            robot_status                  = ROBOT_READY;    // Set the robot status to run
             chassis_cmd_send.chassis_mode = CHASSIS_NORMAL; // Set the chassis mode to normal
             break;
     }

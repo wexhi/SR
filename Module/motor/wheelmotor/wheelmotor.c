@@ -52,6 +52,7 @@ void WheelMotorControl(void)
             DecodeWheelMotor(wheelmotor_instances[i]);
         }
     }
+    // TODO: Connect the encoder sensor
 }
 
 /**
@@ -87,4 +88,8 @@ static void WheelMotorLossCallback(void *owner)
 static void DecodeWheelMotor(WheelMotor_Instance *motor)
 {
     motor->measurement.encoder = __HAL_TIM_GET_COUNTER(motor->encoder->htim);
+    if (motor->measurement.encoder != 0) {
+        DaemonReload(motor->daemon); // 重载守护进程
+        motor->dt = DWT_GetDeltaT(&motor->feed_cnt);
+    }
 }

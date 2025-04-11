@@ -14,9 +14,9 @@
 
 #include "stdint.h"
 
-#define VISION_USE_VCP // 是否使用虚拟串口
+// #define VISION_USE_VCP // 是否使用虚拟串口
 
-// #define VISION_USE_UART // 是否使用硬件串口
+#define VISION_USE_UART // 是否使用硬件串口
 
 #pragma pack(1) // Code alignment for structure packing
 

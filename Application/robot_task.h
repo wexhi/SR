@@ -19,10 +19,12 @@
 #include "robot.h"
 #include "led_task.h"
 #include "motor_task.h"
+#include "daemon.h"
 
 osThreadId_t StartRobotTaskHandle;
 osThreadId_t StartLEDTaskHandle;
 osThreadId_t StartMotorTaskHandle;
+osThreadId_t StartDaemonTaskHandle;
 
 const osThreadAttr_t StartRobotTask_attributes = {
     .name       = "StartRobotTask",
@@ -39,10 +41,16 @@ const osThreadAttr_t StartMotorTask_attributes = {
     .stack_size = 1024 * 4, // Multiply by 4 to convert to bytes
     .priority   = (osPriority_t)osPriorityNormal,
 };
+const osThreadAttr_t StartDAEMONTASK_attributes = {
+    .name       = "StartDAEMONTASK",
+    .stack_size = 128 * 4, // Multiply by 4 to convert to bytes
+    .priority   = (osPriority_t)osPriorityNormal,
+};
 
 void StartRobotTask(void *argument);
 void StartLEDTask(void *argument);
 void StartMotorTask(void *argument);
+void StartDAEMONTASK(void *argument);
 
 /**
  * @brief Intialize the FreeRTOS tasks, all tasks should be created here.
@@ -53,6 +61,7 @@ void OSTaskInit(void)
     StartRobotTaskHandle = osThreadNew(StartRobotTask, NULL, &StartRobotTask_attributes);
     StartLEDTaskHandle   = osThreadNew(StartLEDTask, NULL, &StartLEDTask_attributes);
     StartMotorTaskHandle = osThreadNew(StartMotorTask, NULL, &StartMotorTask_attributes);
+    StartDaemonTaskHandle = osThreadNew(StartDAEMONTASK, NULL, &StartDAEMONTASK_attributes);
 }
 
 /**
@@ -83,8 +92,7 @@ void StartLEDTask(void *argument)
     /* USER CODE BEGIN StartLEDTask */
     LEDInit(); // Initialize the LED instances here if needed
     /* Infinite loop */
-    for (;;)
-    {
+    for (;;) {
         LEDTask(); // Call the LED task function here
         osDelay(10);
     }
@@ -107,4 +115,21 @@ void StartMotorTask(void *argument)
         osDelay(2);
     }
     /* USER CODE END StartMotorTask */
+}
+
+/**
+ * @brief 守护线程任务,100Hz,相当于看门狗
+ *
+ */
+void StartDAEMONTASK(void *argument)
+{
+    static float daemon_dt __attribute__((unused)); // for cancel warning
+    static float daemon_start;
+    for (;;) {
+        // 100Hz
+        daemon_start = DWT_GetTimeline_ms();
+        DaemonTask();
+        daemon_dt = DWT_GetTimeline_ms() - daemon_start;
+        osDelay(10);
+    }
 }

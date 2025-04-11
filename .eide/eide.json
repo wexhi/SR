@@ -99,7 +99,9 @@
           "BSP/CAN",
           "Module/daemon",
           "BSP/PWM",
-          "BSP/ENCODER"
+          "BSP/ENCODER",
+          "Module/miniPC",
+          "Module/referee"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"
