@@ -1,5 +1,5 @@
 #include "led_task.h"
-#include "led.h"
+#include "LED.h"
 #include "message_center.h"
 
 #include "robot_def.h"
@@ -36,4 +36,17 @@ void LEDTask(void)
 {
     // Get the command from the robot_cmd
     SubGetMessage(led_subscriber, &cmd_recv);
+
+    switch (cmd_recv.chassis_mode) {
+        case CHASSIS_NORMAL:
+            LEDOn(led_r);
+            LEDOff(led_l);
+            break;
+        case CHASSIS_ZERO_FORCE:
+            LEDOff(led_r);
+            LEDOff(led_l);
+            break;
+        default:
+            break;
+    }
 }

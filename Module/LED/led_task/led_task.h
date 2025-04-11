@@ -10,6 +10,7 @@
  */
 
 #pragma once
+#include "main.h"
 
 void LEDInit(void);
 void LEDTask(void);

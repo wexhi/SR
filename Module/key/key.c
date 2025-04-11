@@ -15,19 +15,15 @@ static void KEY_HandleInterrupt(GPIO_Instance *gpio)
     KEY_Instance *key = (KEY_Instance *)gpio->id;
     if (key == NULL) return;
 
-    key->state            = GPIORead(gpio); // 当前引脚状态
-    uint64_t now_us       = DWT_GetTimeline_us();
+    uint64_t now_us = DWT_GetTimeline_us();
 
-    // 检测状态变化，下降沿（按下） + 去抖
-    if (key->state != key->last_state && key->state == 0) {
-        if ((now_us - key->last_tick) > KEY_DEBOUNCE_MS * 1000) {
-            key->count++;
-            key->last_tick = now_us;
-            if (key->on_press) key->on_press(key); // 执行用户注册的回调
-        }
+    // 检测状态变化 去抖
+
+    if ((now_us - key->last_tick) > KEY_DEBOUNCE_MS * 1000) {
+        key->count++;
+        key->last_tick = now_us;
+        if (key->on_press) key->on_press(key); // 执行用户注册的回调
     }
-
-    key->last_state = key->state; // 更新上次状态
 }
 
 /**
@@ -47,8 +43,6 @@ KEY_Instance *KEYRegister(KEY_Config_s *config)
     config->gpio_config.id                  = key;
 
     key->gpio       = GPIORegister(&config->gpio_config);
-    key->state      = GPIORead(key->gpio);
-    key->last_state = key->state;
     key->count      = 0;
     key->last_tick  = DWT_GetTimeline_us();
     key->on_press   = config->on_press; // 可选绑定用户回调

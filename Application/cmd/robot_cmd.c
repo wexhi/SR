@@ -26,11 +26,10 @@ void RobotCMDInit(void)
         .gpio_config = {
             .GPIOx     = KEY_L_GPIO_Port,
             .GPIO_Pin  = KEY_L_Pin,
-            .pin_state = GPIO_PIN_RESET,
+            .pin_state = GPIO_PIN_SET,
             .exti_mode = GPIO_EXTI_MODE_FALLING,
         },
-        .init_state = GPIO_PIN_RESET,
-        .on_press   = NULL, // No callback for now
+        .on_press = NULL, // No callback for now
     };
     key_l                           = KEYRegister(&key_config);
     key_config.gpio_config.GPIOx    = KEY_R_GPIO_Port;
@@ -64,6 +63,7 @@ static void RobotModeSet(KEY_Instance *key)
             RobotStop();
             break;
         default:
+            robot_status                  = ROBOT_READY;          // Set the robot status to run
             chassis_cmd_send.chassis_mode = CHASSIS_NORMAL; // Set the chassis mode to normal
             break;
     }
@@ -71,6 +71,8 @@ static void RobotModeSet(KEY_Instance *key)
 
 static void RobotStop(void)
 {
+    // Stop the robot
+    robot_status                  = ROBOT_STOP;         // Set the robot status to stop
     chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE; // Set the chassis mode to stop
     chassis_cmd_send.vx           = 0.0f;               // Set the forward speed to 0
     chassis_cmd_send.wz           = 0.0f;               // Set the angular speed to 0

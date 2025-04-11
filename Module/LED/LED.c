@@ -1,4 +1,4 @@
-#include "led.h"
+#include "LED.h"
 #include "stdlib.h"
 #include "memory.h"
 
@@ -62,7 +62,7 @@ void LEDOn(LED_Instance *led)
 {
     if (!led || led->state == LED_ON) return;
 
-    GPIOSet(led->gpio);
+    GPIOReset(led->gpio);
     led->state = LED_ON;
 
     if (led->on_change)
@@ -77,7 +77,7 @@ void LEDOff(LED_Instance *led)
 {
     if (!led || led->state == LED_OFF) return;
 
-    GPIOReset(led->gpio);
+    GPIOSet(led->gpio);
     led->state = LED_OFF;
 
     if (led->on_change)

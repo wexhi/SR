@@ -20,8 +20,6 @@
  */
 typedef struct KEY_Instance {
     GPIO_Instance *gpio;                     // GPIO实例
-    uint8_t state;                           // 当前状态（0:低电平，1:高电平）
-    uint8_t last_state;                      // 上一次状态
     uint16_t count;                          // 按键按下计数
     uint32_t last_tick;                      // 上一次触发时间（用于去抖）
     void (*on_press)(struct KEY_Instance *); // 用户自定义按下时的回调函数
@@ -32,7 +30,6 @@ typedef struct KEY_Instance {
  */
 typedef struct {
     GPIO_Init_Config_s gpio_config;      // GPIO 配置（包含中断模式等）
-    uint8_t init_state;                  // 初始状态
     void (*on_press)(KEY_Instance *key); // 初始化时绑定的按下回调（可选）
 } KEY_Config_s;
 
