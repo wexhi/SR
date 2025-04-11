@@ -8,3 +8,8 @@
  * @copyright Copyright (c) 2025
  *
  */
+
+#pragma once
+
+void LEDInit(void);
+void LEDTask(void);

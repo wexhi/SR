@@ -24,12 +24,12 @@ LED_Instance *LEDRegister(LED_Config_s *config)
     led->gpio              = GPIORegister(&config->gpio_config);
 
     // 设置初始状态
-    if (config->initial_state == GPIO_PIN_SET) {
-        GPIOSet(led->gpio);
-        led->state = 1;
-    } else {
+    if (config->initial_state == LED_ON) {
         GPIOReset(led->gpio);
-        led->state = 0;
+        led->state = LED_ON;
+    } else {
+        GPIOSet(led->gpio);
+        led->state = LED_OFF;
     }
 
     led->on_change = config->on_change;
@@ -60,10 +60,10 @@ void LEDUnregister(LED_Instance *led)
  */
 void LEDOn(LED_Instance *led)
 {
-    if (!led || led->state == 1) return;
+    if (!led || led->state == LED_ON) return;
 
     GPIOSet(led->gpio);
-    led->state = 1;
+    led->state = LED_ON;
 
     if (led->on_change)
         led->on_change(led);
@@ -75,10 +75,10 @@ void LEDOn(LED_Instance *led)
  */
 void LEDOff(LED_Instance *led)
 {
-    if (!led || led->state == 0) return;
+    if (!led || led->state == LED_OFF) return;
 
     GPIOReset(led->gpio);
-    led->state = 0;
+    led->state = LED_OFF;
 
     if (led->on_change)
         led->on_change(led);
@@ -102,10 +102,10 @@ void LEDToggle(LED_Instance *led)
 /**
  * @brief 获取当前 LED 状态
  * @param led LED 实例
- * @return uint8_t 0=灭，1=亮
+ * @return 0=灭，1=亮
  */
 uint8_t LEDGetState(LED_Instance *led)
 {
-    if (!led) return 0;
+    if (!led) return LED_OFF;
     return led->state;
 }

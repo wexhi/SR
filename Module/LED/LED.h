@@ -13,12 +13,17 @@
 
 #define LED_MAX_NUM 10 // 支持的最大LED实例数
 
+typedef enum {
+    LED_OFF = 0, // 关闭
+    LED_ON  = 1, // 打开
+} LED_State_e;
+
 /**
  * @brief LED实例结构体
  */
 typedef struct LED_Instance {
     GPIO_Instance *gpio;                      // 绑定的GPIO实例
-    uint8_t state;                            // 当前LED状态（0=灭，1=亮）
+    LED_State_e state;                        // 当前LED状态（LED_OFF=灭，LED_ON=亮）
     void (*on_change)(struct LED_Instance *); // 状态变更时的用户回调（可选）
 } LED_Instance;
 
@@ -27,7 +32,7 @@ typedef struct LED_Instance {
  */
 typedef struct {
     GPIO_Init_Config_s gpio_config;       // GPIO初始化配置
-    GPIO_PinState initial_state;          // 初始状态（建议 GPIO_PIN_RESET=灭）
+    LED_State_e initial_state;            // 初始状态（LED_OFF=灭，LED_ON=亮）
     void (*on_change)(LED_Instance *led); // 状态变更回调（可选）
 } LED_Config_s;
 
