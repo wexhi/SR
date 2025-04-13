@@ -101,7 +101,9 @@
           "BSP/PWM",
           "BSP/ENCODER",
           "Module/miniPC",
-          "Module/referee"
+          "Module/referee",
+          "Module/JY901S",
+          "Module/JY901S/wit_c_sdk"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"

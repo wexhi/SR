@@ -20,6 +20,7 @@
 #include "led_task.h"
 #include "motor_task.h"
 #include "daemon.h"
+#include "JY901S.h"
 
 osThreadId_t StartRobotTaskHandle;
 osThreadId_t StartLEDTaskHandle;
@@ -58,9 +59,9 @@ void StartDAEMONTASK(void *argument);
  */
 void OSTaskInit(void)
 {
-    StartRobotTaskHandle = osThreadNew(StartRobotTask, NULL, &StartRobotTask_attributes);
-    StartLEDTaskHandle   = osThreadNew(StartLEDTask, NULL, &StartLEDTask_attributes);
-    StartMotorTaskHandle = osThreadNew(StartMotorTask, NULL, &StartMotorTask_attributes);
+    StartRobotTaskHandle  = osThreadNew(StartRobotTask, NULL, &StartRobotTask_attributes);
+    StartLEDTaskHandle    = osThreadNew(StartLEDTask, NULL, &StartLEDTask_attributes);
+    StartMotorTaskHandle  = osThreadNew(StartMotorTask, NULL, &StartMotorTask_attributes);
     StartDaemonTaskHandle = osThreadNew(StartDAEMONTASK, NULL, &StartDAEMONTASK_attributes);
 }
 
@@ -73,6 +74,7 @@ void OSTaskInit(void)
 void StartRobotTask(void *argument)
 {
     /* USER CODE BEGIN StartRobotTask */
+    INS_Init(); // Initialize the JY901S instance here if needed
     /* Infinite loop */
     for (;;) {
         RobotTask(); // Call the robot task function here
