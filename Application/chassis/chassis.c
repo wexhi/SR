@@ -31,8 +31,6 @@ void ChassisInit()
         },
         .encoder_init_config = {
             .htim     = &htim5,
-            .channel1 = TIM_CHANNEL_1,
-            .channel2 = TIM_CHANNEL_2,
         },
         .controller_param_init_config = {
             .speed_PID = {
@@ -58,7 +56,7 @@ void ChassisInit()
 
     motor_r = WheelMotorInit(&motor_config); // Initialize the right wheel motor
     motor_config.pwm_init_config.channel = TIM_CHANNEL_3; // Change the channel for the left motor
-    motor_config.encoder_init_config.htim = &htim5;
+    motor_config.encoder_init_config.htim = &htim2;
     motor_l = WheelMotorInit(&motor_config); // Initialize the left wheel motor
 
     chassis_cmd_sub    = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));       // Subscribe to the command topic
@@ -72,8 +70,12 @@ void ChassisTask(void)
 
     if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE) {
         // TODO: Motor stop
+        WheelMotorStop(motor_l);
+        WheelMotorStop(motor_r);
     } else {
         // TODO: Motor Enable
+        WheelMotorEnable(motor_l);
+        WheelMotorEnable(motor_r);
     }
 
     chassis_vx = chassis_cmd_recv.vx; // Get the forward speed from the command

@@ -11,8 +11,6 @@ TIM_Encoder_Instance *TIM_Encoder_Register(TIM_Encoder_Config *config)
     if (encoder == NULL) return NULL;
     memset(encoder, 0, sizeof(TIM_Encoder_Instance));
     encoder->htim           = config->htim;
-    encoder->channel1       = config->channel1;
-    encoder->channel2       = config->channel2;
     encoderInstances[idx++] = encoder;
     HAL_TIM_Encoder_Start(encoder->htim, TIM_CHANNEL_ALL);
 

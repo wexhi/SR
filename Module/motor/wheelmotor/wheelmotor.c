@@ -88,8 +88,10 @@ static void WheelMotorLossCallback(void *owner)
 static void DecodeWheelMotor(WheelMotor_Instance *motor)
 {
     motor->measurement.encoder = __HAL_TIM_GET_COUNTER(motor->encoder->htim);
-    if (motor->measurement.encoder != 0) {
-        DaemonReload(motor->daemon); // 重载守护进程
-        motor->dt = DWT_GetDeltaT(&motor->feed_cnt);
-    }
+    // motor->measurement.direction = __HAL_TIM_IS_TIM_COUNTING(motor->encoder->htim) ? 1 : 0;
+    // motor->measurement.speed_aps = (float)motor->measurement.encoder * 360.0f / (float)motor->encoder->htim->Instance->ARR;
+    // motor->measurement.total_angle += motor->measurement.speed_aps * motor->dt;
+
+    DaemonReload(motor->daemon); // 重载守护进程
+    motor->dt = DWT_GetDeltaT(&motor->feed_cnt);
 }

@@ -35,7 +35,7 @@ void Robot_Init(void)
     __enable_irq(); // Enable interrupts after initialization
 }
 
-// static int32_t test2, test5;
+static int32_t test2, test5;
 /**
  * @brief The task entry point for the robot.
  *
@@ -44,6 +44,6 @@ void RobotTask(void)
 {
     RobotCMDTask(); // Call the robot command task function here
     ChassisTask();  // Call the chassis task function here
-    // test2 = __HAL_TIM_GET_COUNTER(&htim2);
-    // test5 = __HAL_TIM_GET_COUNTER(&htim5);
+    test2 = __HAL_TIM_GET_COUNTER(&htim2);
+    test5 = __HAL_TIM_GET_COUNTER(&htim5);
 }

@@ -19,6 +19,7 @@ typedef struct
 {
     volatile int32_t encoder; // 编码器值
     volatile float speed_aps; // 角速度,单位为:度/秒
+    uint8_t direction;        // 方向,0:正转,1:反转
 
     float total_angle;   // 绝对角度,单位为:度
     int32_t total_round; // 绝对圈数,单位为:圈
@@ -31,7 +32,7 @@ typedef struct
     Motor_Controller_s motor_controller;    // 电机控制器
     Motor_Type_e motor_type;                // 电机类型
     PWM_Instance *pwm;                      // PWM实例
-    TIM_Encoder_Instance *encoder;         // 编码器实例
+    TIM_Encoder_Instance *encoder;          // 编码器实例
 
     Motor_Working_Type_e stop_flag; // 启停标志
 
