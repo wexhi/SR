@@ -54,10 +54,10 @@ void ChassisInit()
         },
     };
 
-    motor_r = WheelMotorInit(&motor_config); // Initialize the right wheel motor
+    motor_l = WheelMotorInit(&motor_config); // Initialize the left wheel motor
     motor_config.pwm_init_config.channel = TIM_CHANNEL_3; // Change the channel for the left motor
     motor_config.encoder_init_config.htim = &htim2;
-    motor_l = WheelMotorInit(&motor_config); // Initialize the left wheel motor
+    motor_r = WheelMotorInit(&motor_config); // Initialize the right wheel motor
 
     chassis_cmd_sub    = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));       // Subscribe to the command topic
     chassis_upload_pub = PubRegister("chassis_upload", sizeof(Chassis_Upload_Data_s)); // Register the upload topic
