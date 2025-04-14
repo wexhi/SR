@@ -25,8 +25,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 PWM_Instance *PWMRegister(PWM_Init_Config_s *config)
 {
     if (idx >= PWM_DEVICE_CNT) // 超过最大实例数,考虑增加或查看是否有内存泄漏
-        while (1)
-            ;
+        while (1);
     PWM_Instance *pwm = (PWM_Instance *)malloc(sizeof(PWM_Instance));
     memset(pwm, 0, sizeof(PWM_Instance));
 
@@ -38,7 +37,13 @@ PWM_Instance *PWMRegister(PWM_Init_Config_s *config)
     pwm->id        = config->id;
     pwm->tclk      = PWMSelectTclk(pwm->htim);
     // 启动PWM
-    HAL_TIM_PWM_Start(pwm->htim, pwm->channel);
+    if (config->is_N) {
+        HAL_TIMEx_PWMN_Start(pwm->htim, pwm->channel);
+    } else {
+        HAL_TIM_PWM_Start(pwm->htim, pwm->channel);
+    }
+    // HAL_TIM_PWM_Start(pwm->htim, pwm->channel);
+
     PWMSetPeriod(pwm, pwm->period);
     PWMSetDutyRatio(pwm, pwm->dutyratio);
     pwm_instances[idx++] = pwm;

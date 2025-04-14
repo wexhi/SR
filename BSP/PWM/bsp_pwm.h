@@ -33,6 +33,7 @@ typedef struct
 {
     TIM_HandleTypeDef *htim;          // TIM句柄
     uint32_t channel;                 // 通道
+    uint8_t is_N;                     // 是否是互补通道
     float period;                     // 周期
     float dutyratio;                  // 占空比
     void (*callback)(PWM_Instance *); // DMA传输完成回调函数

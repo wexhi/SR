@@ -1,9 +1,12 @@
 #include "wheelmotor.h"
 #include "general_def.h"
 #include "bsp_dwt.h"
+#include "bsp_pwm.h"
+#include "bsp_gpio.h"
+#include "tim.h"
 #include "daemon.h"
-#include "cmsis_os.h" // FreeRTOS的osDelay函数需要包含此头文件
 #include <math.h>     // 计算三角函数时用到
+#include "cmsis_os.h" // FreeRTOS头文件
 
 static uint8_t idx                                                    = 0;
 static WheelMotor_Instance *wheelmotor_instances[WHEEL_MOTOR_MAX_NUM] = {NULL}; // 电机实例列表
@@ -11,7 +14,7 @@ static WheelMotor_Instance *wheelmotor_instances[WHEEL_MOTOR_MAX_NUM] = {NULL}; 
 static void WheelMotorLossCallback(void *owner);
 static void DecodeWheelMotor(WheelMotor_Instance *motor);
 
-WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config)
+WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config, WheelMotor_Init_Config_s *wheelmotor_config)
 {
     if (idx >= WHEEL_MOTOR_MAX_NUM)
         return NULL;
@@ -33,8 +36,15 @@ WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config)
     motor->motor_controller.current_feedforward_ptr  = config->controller_param_init_config.current_feedforward_ptr;
 
     // 初始化PWM和编码器
-    motor->pwm     = PWMRegister(&config->pwm_init_config);
-    motor->encoder = TIM_Encoder_Register(&config->encoder_init_config);
+    motor->pwm     = PWMRegister(&wheelmotor_config->pwm_init_config);
+    motor->encoder = TIM_Encoder_Register(&wheelmotor_config->encoder_init_config);
+
+    wheelmotor_config->gpio_init_config_1.exti_mode           = EXTI_MODE_NONE;
+    wheelmotor_config->gpio_init_config_2.exti_mode           = EXTI_MODE_NONE;
+    wheelmotor_config->gpio_init_config_1.gpio_model_callback = NULL;
+    wheelmotor_config->gpio_init_config_2.gpio_model_callback = NULL;
+    motor->gpio_1                                             = GPIORegister(&wheelmotor_config->gpio_init_config_1);
+    // motor->gpio_2                                             = GPIORegister(&wheelmotor_config->gpio_init_config_2);
 
     // 初始化测量数据
     motor->measurement.encoder_total_count = 0;
@@ -59,12 +69,30 @@ WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config)
 void WheelMotorControl(void)
 {
     // 遍历所有电机实例，更新数据
-    for (uint8_t i = 0; i < idx; i++) {
+    for (size_t i = 0; i < idx; i++) {
         if (wheelmotor_instances[i] != NULL) {
             DecodeWheelMotor(wheelmotor_instances[i]);
         }
     }
     // 此处可添加其他周期处理函数
+    WheelMotor_Instance *motor;
+    // Motor_Control_Setting_s *motor_setting; // 电机控制参数
+    // Motor_Controller_s *motor_controller;   // 电机控制器
+    // WheelMotor_Measurement_s *measurement;  // 电机测量数据
+    // float pid_measurement, pid_ref;
+
+    for (size_t i = 0; i < idx; i++) {
+        motor = wheelmotor_instances[i];
+        if (motor == NULL) continue;
+
+        if (motor->stop_flag == MOTOR_STOP) {
+            motor->gpio_1->pin_state = GPIOReset(motor->gpio_1); // 停止电机
+            PWMSetDutyRatio(motor->pwm, 0.0f);                   // 停止电机
+        } else if (motor->stop_flag == MOTOR_ENABLE) {
+            motor->gpio_1->pin_state = GPIOReset(motor->gpio_1);
+            PWMSetDutyRatio(motor->pwm, 1.f); // 启动电机
+        }
+    }
 }
 
 /**
@@ -107,21 +135,9 @@ static void WheelMotorLossCallback(void *owner)
     motor->stop_flag           = MOTOR_STOP;
 }
 
-/**
- * @brief 更新编码器数据，并计算角速度、线速度及累计角度
- *
- * 处理步骤：
- *  1. 调用 osDelay(2) 以满足 FreeRTOS 任务周期要求（2ms周期）。
- *  2. 利用静态数组保存上一次16位编码器计数值，对本周期计数差（delta）进行计算（考虑溢出）。
- *  3. 利用 DWT_GetDeltaT 获取本周期时间 dt（秒）。
- *  4. 根据 delta 计算角度增量（单位：度），更新累计角度，并计算角速度（单位：deg/s）。
- *  5. 根据角速度换算线速度：线速度 = (角速度/360) × 轮子周长（m/s）。
- *  6. 根据累计角度计算完整转圈数。
- *  7. 更新旋转方向：delta>=0 为正转，反之为反转。
- */
 static void DecodeWheelMotor(WheelMotor_Instance *motor)
 {
-    // 用静态数组记录各实例上一次的编码器数值
+    // 静态变量记录前一次编码器值（按实例编号区分）
     static uint16_t last_encoder[WHEEL_MOTOR_MAX_NUM] = {0};
     uint8_t id                                        = 0;
     for (; id < WHEEL_MOTOR_MAX_NUM; ++id) {
@@ -129,39 +145,40 @@ static void DecodeWheelMotor(WheelMotor_Instance *motor)
             break;
     }
 
-    // 读取当前编码器值（16位计数器）
+    // 当前时间
+    uint32_t now_ms     = osKernelGetTickCount();
+    uint32_t dt_ms      = now_ms - motor->last_tick_ms;
+    motor->last_tick_ms = now_ms;
+
+    // 转为秒
+    motor->dt = dt_ms / 1000.0f;
+    if (motor->dt <= 0.0f) motor->dt = 0.001f; // 防止除以0
+
+    // 当前编码器读数
     uint16_t curr_encoder = __HAL_TIM_GET_COUNTER(motor->encoder->htim);
-    // 使用 int16_t 差分，自动处理溢出情况
-    int16_t delta    = (int16_t)(curr_encoder - last_encoder[id]);
-    last_encoder[id] = curr_encoder;
+    int16_t delta         = (int16_t)(curr_encoder - last_encoder[id]);
+    last_encoder[id]      = curr_encoder;
 
     motor->measurement.encoder = curr_encoder;
     motor->measurement.encoder_total_count += delta;
 
-    // 通过 DWT 获取本周期间隔，单位为秒
-    motor->dt = DWT_GetDeltaT(&motor->feed_cnt);
+    // 角度变化（度）
+    float angle_increment = delta * DEGREE_PER_COUNT;
 
-    // 根据每个计数对应的角度（度）计算本周期角度增量
-    float angle_increment = delta * DEGREE_PER_COUNT; // 单位：度
+    // 角速度（度/秒）
+    motor->measurement.speed_aps = angle_increment / motor->dt;
 
-    // 计算角速度（deg/s）
-    if (motor->dt > 0)
-        motor->measurement.speed_aps = angle_increment / motor->dt;
-    else
-        motor->measurement.speed_aps = 0;
-
-    // 根据角速度换算线速度：
-    // 每秒转速（rev/s） = 角速度 (deg/s) / 360，线速度 = rev/s × 轮周长
+    // 线速度（m/s）= 角速度（deg/s）/ 360 × 轮周长
     motor->measurement.linear_speed = (motor->measurement.speed_aps / 360.0f) * WHEEL_CIRCUMFERENCE_M;
 
-    // 更新累计角度和圈数
+    // 累计角度与圈数
     motor->measurement.total_angle += angle_increment;
     motor->measurement.total_round = (int32_t)(motor->measurement.total_angle / 360.0f);
 
-    // 更新旋转方向
+    // 方向判断（0 正转，1 反转）
     motor->measurement.direction = (delta >= 0) ? 0 : 1;
 
-    // 重载看门狗，确保系统监控正常
+    // 重载守护进程
     DaemonReload(motor->daemon);
 }
 

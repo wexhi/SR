@@ -170,11 +170,9 @@ typedef struct
     Motor_Controller_Init_s controller_param_init_config;
     Motor_Control_Setting_s controller_setting_init_config;
     Motor_Type_e motor_type;
-    DMMotor_Controll_Type_e control_type;   // 电机工作类型,达妙电机专用
-    LKMotor_Working_Type_e motor_work_type; // LK电机工作类型，单电机或多电机
-    CAN_Init_Config_s can_init_config;
-    PWM_Init_Config_s pwm_init_config;
-    TIM_Encoder_Config encoder_init_config;
+    // DMMotor_Controll_Type_e control_type;   // 电机工作类型,达妙电机专用
+    // LKMotor_Working_Type_e motor_work_type; // LK电机工作类型，单电机或多电机
+    // CAN_Init_Config_s can_init_config;
 } Motor_Init_Config_s;
 
 #endif // MOTOR_DEF_H

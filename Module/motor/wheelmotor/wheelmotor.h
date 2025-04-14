@@ -6,6 +6,9 @@
 #include "daemon.h"
 #include "bsp_pwm.h"
 #include "bsp_encoder.h"
+#include "bsp_gpio.h"
+
+// MAX SPEED 0.44f m/s
 
 // 编码器及轮子参数
 #define ENCODER_PULSES_PER_REV 20.0f                                           // 霍尔编码器每转脉冲数
@@ -22,7 +25,14 @@
 /* 滤波系数设置为1的时候即关闭滤波 */
 #define SPEED_SMOOTH_COEF   0.85f // 最好大于0.85
 #define CURRENT_SMOOTH_COEF 0.9f  // 必须大于0.9
-#define REDUCTION_RATIO      48.0f // 减速比
+#define REDUCTION_RATIO     48.0f // 减速比
+
+typedef struct {
+    PWM_Init_Config_s pwm_init_config;
+    TIM_Encoder_Config encoder_init_config;
+    GPIO_Init_Config_s gpio_init_config_1;
+    GPIO_Init_Config_s gpio_init_config_2;
+} WheelMotor_Init_Config_s;
 
 /* 电机反馈数据 */
 typedef struct
@@ -45,15 +55,18 @@ typedef struct
     Motor_Type_e motor_type;                // 电机类型
     PWM_Instance *pwm;                      // PWM实例
     TIM_Encoder_Instance *encoder;          // 编码器实例
-
+    GPIO_Instance *gpio_1;                  // GPIO实例1
+    GPIO_Instance *gpio_2;
     Motor_Working_Type_e stop_flag; // 启停标志
 
     Daemon_Instance *daemon;
-    uint32_t feed_cnt; // 用于 DWT 计时
-    float dt;          // 更新时间间隔（秒）
+    uint32_t feed_cnt;     // 用于 DWT 计时
+    uint32_t last_tick_ms; // 上一次更新的毫秒时间
+
+    float dt; // 更新时间间隔（秒）
 } WheelMotor_Instance;
 
-WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config);
+WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config, WheelMotor_Init_Config_s *wheelmotor_config);
 void WheelMotorEnable(WheelMotor_Instance *motor);
 void WheelMotorStop(WheelMotor_Instance *motor);
 void WheelMotorSetRef(WheelMotor_Instance *motor, float ref);

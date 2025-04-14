@@ -46,8 +46,8 @@ void GPIOUnregister(GPIO_Instance *instance);
 
 // GPIO 控制 API
 void GPIOToggel(GPIO_Instance *_instance);
-void GPIOSet(GPIO_Instance *_instance);
-void GPIOReset(GPIO_Instance *_instance);
+GPIO_PinState GPIOSet(GPIO_Instance *_instance);
+GPIO_PinState GPIOReset(GPIO_Instance *_instance);
 GPIO_PinState GPIORead(GPIO_Instance *_instance);
 
 #endif // BSP_GPIO_H

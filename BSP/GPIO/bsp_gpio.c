@@ -27,6 +27,11 @@ GPIO_Instance *GPIORegister(GPIO_Init_Config_s *GPIO_config)
     gpio->gpio_model_callback = GPIO_config->gpio_model_callback;
 
     gpio_instances[idx++] = gpio;
+    if (gpio->pin_state == GPIO_PIN_SET) {
+        HAL_GPIO_WritePin(gpio->GPIOx, gpio->GPIO_Pin, GPIO_PIN_SET);
+    } else {
+        HAL_GPIO_WritePin(gpio->GPIOx, gpio->GPIO_Pin, GPIO_PIN_RESET);
+    }
     return gpio;
 }
 
@@ -75,18 +80,21 @@ void GPIOToggel(GPIO_Instance *instance)
  * @brief 设置 GPIO 为高电平
  * @param instance GPIO 实例
  */
-void GPIOSet(GPIO_Instance *instance)
+GPIO_PinState GPIOSet(GPIO_Instance *instance)
 {
     HAL_GPIO_WritePin(instance->GPIOx, instance->GPIO_Pin, GPIO_PIN_SET);
+    return GPIO_PIN_SET;
 }
 
 /**
  * @brief 设置 GPIO 为低电平
  * @param instance GPIO 实例
  */
-void GPIOReset(GPIO_Instance *instance)
+GPIO_PinState GPIOReset(GPIO_Instance *instance)
 {
+    instance->pin_state = GPIO_PIN_RESET;
     HAL_GPIO_WritePin(instance->GPIOx, instance->GPIO_Pin, GPIO_PIN_RESET);
+    return GPIO_PIN_RESET;
 }
 
 /**
