@@ -59,6 +59,7 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define IRQ_HW_L_Pin GPIO_PIN_5
 #define IRQ_HW_L_GPIO_Port GPIOE
+#define IRQ_HW_L_EXTI_IRQn EXTI9_5_IRQn
 #define XC_Pin GPIO_PIN_15
 #define XC_GPIO_Port GPIOC
 #define MOTOR_R_IN2_Pin GPIO_PIN_7
@@ -98,6 +99,7 @@ void Error_Handler(void);
 #define CE_24L01_GPIO_Port GPIOD
 #define IRQ_HW_R_Pin GPIO_PIN_8
 #define IRQ_HW_R_GPIO_Port GPIOB
+#define IRQ_HW_R_EXTI_IRQn EXTI9_5_IRQn
 
 /* USER CODE BEGIN Private defines */
 
