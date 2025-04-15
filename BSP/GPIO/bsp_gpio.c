@@ -55,10 +55,8 @@ void GPIOUnregister(GPIO_Instance *instance)
  * @brief HAL层中断回调，在中断发生时调用
  * @param GPIO_Pin 被触发的引脚编号（HAL 定义宏）
  */
-int c;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    c++;
     GPIO_Instance *gpio = NULL;
     for (uint8_t i = 0; i < GPIO_INSTANCE_MAX_NUM; ++i) {
         gpio = gpio_instances[i];

@@ -70,6 +70,8 @@ static void RobotModeSet(KEY_Instance *key)
         default:
             robot_status                  = ROBOT_READY;    // Set the robot status to run
             chassis_cmd_send.chassis_mode = CHASSIS_NORMAL; // Set the chassis mode to normal
+            chassis_cmd_send.vx           = 0.2f;          // Set the forward speed to 0
+            chassis_cmd_send.wz           = 0.0f;          // Set the angular speed to 0
             break;
     }
 }

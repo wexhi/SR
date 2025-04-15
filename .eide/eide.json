@@ -105,7 +105,9 @@
           "Module/JY901S",
           "Module/JY901S/wit_c_sdk",
           "Module/infrared",
-          "Application/sensors"
+          "Application/sensors",
+          "Module/cliff",
+          "BSP/ADC"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"

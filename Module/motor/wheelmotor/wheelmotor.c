@@ -41,7 +41,7 @@ WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config, WheelMotor_Init
 
     wheelmotor_config->gpio_init_config.exti_mode           = EXTI_MODE_NONE; // Updated to use the single GPIO config
     wheelmotor_config->gpio_init_config.gpio_model_callback = NULL;
-    motor->gpio_1                                         = GPIORegister(&wheelmotor_config->gpio_init_config);
+    motor->gpio_1                                           = GPIORegister(&wheelmotor_config->gpio_init_config);
 
     // 初始化测量数据
     motor->measurement.encoder_total_count = 0;
@@ -65,29 +65,60 @@ WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config, WheelMotor_Init
 
 void WheelMotorControl(void)
 {
-    // 遍历所有电机实例，更新数据
     for (size_t i = 0; i < idx; i++) {
         if (wheelmotor_instances[i] != NULL) {
             DecodeWheelMotor(wheelmotor_instances[i]);
         }
     }
-    // 此处可添加其他周期处理函数
+
     WheelMotor_Instance *motor;
-    // Motor_Control_Setting_s *motor_setting; // 电机控制参数
-    // Motor_Controller_s *motor_controller;   // 电机控制器
-    // WheelMotor_Measurement_s *measurement;  // 电机测量数据
-    // float pid_measurement, pid_ref;
+    Motor_Control_Setting_s *motor_setting;
+    Motor_Controller_s *motor_controller;
+    WheelMotor_Measurement_s *measurement;
 
     for (size_t i = 0; i < idx; i++) {
-        motor = wheelmotor_instances[i];
+        motor            = wheelmotor_instances[i];
+        motor_setting    = &motor->motor_settings;
+        motor_controller = &motor->motor_controller;
+        measurement      = &motor->measurement;
+
         if (motor == NULL) continue;
 
         if (motor->stop_flag == MOTOR_STOP) {
-            motor->gpio_1->pin_state = GPIOReset(motor->gpio_1); // 停止电机
-            PWMSetDutyRatio(motor->pwm, 0.0f);                   // 停止电机
-        } else if (motor->stop_flag == MOTOR_ENABLE) {
             motor->gpio_1->pin_state = GPIOReset(motor->gpio_1);
-            PWMSetDutyRatio(motor->pwm, 1.f); // 启动电机
+            PWMSetDutyRatio(motor->pwm, 0.0f);
+        } else if (motor->stop_flag == MOTOR_ENABLE) {
+
+            float ref_speed = motor_controller->pid_ref;
+            float measured_speed;
+
+            if (motor_setting->speed_feedback_source == OTHER_FEED && motor_controller->other_speed_feedback_ptr != NULL) {
+                measured_speed = *motor_controller->other_speed_feedback_ptr;
+            } else {
+                measured_speed = measurement->speed_aps;
+            }
+
+            if (motor_setting->feedforward_flag & SPEED_FEEDFORWARD && motor_controller->speed_feedforward_ptr != NULL) {
+                ref_speed += *motor_controller->speed_feedforward_ptr;
+            }
+
+            float pid_out = PIDCalculate(&motor_controller->speed_PID, measured_speed, ref_speed);
+
+            if (pid_out < 0) {
+                motor->gpio_1->pin_state = GPIOSet(motor->gpio_1); // 反转
+            } else {
+                motor->gpio_1->pin_state = GPIOReset(motor->gpio_1);
+            }
+
+            float duty_ratio = fabsf(pid_out) / 750.0f;
+            if (duty_ratio > 1.0f) duty_ratio = 1.0f;
+            if (duty_ratio < 0.0f) duty_ratio = 0.0f;
+
+            motor_controller->pid_out       = pid_out;
+            motor_controller->pid_speed_out = pid_out;
+
+            motor->pwm_out = duty_ratio;
+            PWMSetDutyRatio(motor->pwm, duty_ratio);
         }
     }
 }
@@ -160,13 +191,29 @@ static void DecodeWheelMotor(WheelMotor_Instance *motor)
     motor->measurement.encoder_total_count += delta;
 
     // 角度变化（度）
+    // 原始角速度
     float angle_increment = delta * DEGREE_PER_COUNT;
+    float raw_speed       = angle_increment / motor->dt;
 
-    // 角速度（度/秒）
-    motor->measurement.speed_aps = angle_increment / motor->dt;
+    // 跳变抑制（限幅）
+    float last_speed  = motor->measurement.speed_aps;
+    float delta_speed = raw_speed - last_speed;
+    if (fabsf(delta_speed) > APS_JUMP_THRESHOLD) {
+        raw_speed = last_speed + (delta_speed > 0 ? APS_JUMP_THRESHOLD : -APS_JUMP_THRESHOLD);
+    }
 
-    // 线速度（m/s）= 角速度（deg/s）/ 360 × 轮周长
-    motor->measurement.linear_speed = (motor->measurement.speed_aps / 360.0f) * WHEEL_CIRCUMFERENCE_M;
+    // 一阶滤波
+    float lpf_speed = LowPassFilter(last_speed, raw_speed, APS_LPF_ALPHA);
+    // motor->measurement.speed_aps = lpf_speed;
+    // 滑动平均
+    motor->measurement.speed_aps = SlidingAverageFilter(
+        motor->measurement.aps_buffer,
+        APS_BUFFER_SIZE,
+        lpf_speed,
+        &motor->measurement.aps_index); // Updated to use motor->measurement.aps_index
+
+    // 同步线速度
+    motor->measurement.linear_speed = (motor->measurement.speed_aps / 360.0f) * WHEEL_CIRCUMFERENCE_M; // Updated to use motor->measurement.linear_speed
 
     // 累计角度与圈数
     motor->measurement.total_angle += angle_increment;

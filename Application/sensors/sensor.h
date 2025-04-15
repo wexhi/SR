@@ -12,8 +12,6 @@
 #pragma once
 
 #include "stdint.h"
-#include "bsp_gpio.h"
-#include "infrared.h"
 
 void SensorInit(void);
 void SensorTask(void);

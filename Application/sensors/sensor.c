@@ -1,10 +1,14 @@
 #include "sensor.h"
+#include "bsp_gpio.h"
+#include "infrared.h"
+#include "cliff.h"
+#include "string.h"
 
 static IR_Instance *ir_l, *ir_r;
-static int a = 0;
+static Cliff_Instance *cliff_instance = NULL; // Static instance of Cliff_Instance
+
 static void Infrared_Callback(IR_Instance *ir)
 {
-    a++;
 }
 void SensorInit(void)
 {
@@ -22,8 +26,13 @@ void SensorInit(void)
     ir_cofig.gpio_config.GPIOx    = GPIOB;
     ir_cofig.gpio_config.GPIO_Pin = GPIO_PIN_8;
     ir_r                          = IRRegister(&ir_cofig);
+
+    cliff_instance = Cliff_Init();
+
+    ADC_Start(); // 启动ADC
 }
 
 void SensorTask(void)
 {
+    Cliff_Update(); // 每次刷新电压
 }

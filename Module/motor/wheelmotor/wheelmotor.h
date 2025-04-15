@@ -7,6 +7,7 @@
 #include "bsp_pwm.h"
 #include "bsp_encoder.h"
 #include "bsp_gpio.h"
+#include "filter_utils.h"
 
 // MAX SPEED 0.44f m/s
 
@@ -18,14 +19,15 @@
 
 // 轮子直径及周长（直径单位：米）
 #define WHEEL_DIAMETER_M      0.06768f                        // 67.68 mm
+#define WHEEL_RADIUS          (WHEEL_DIAMETER_M / 2.0f)       // 半径，约 0.03384 m
 #define WHEEL_CIRCUMFERENCE_M (WHEEL_DIAMETER_M * 3.1415926f) // 周长，约 0.2126 m
 
 #define WHEEL_MOTOR_MAX_NUM   2 // 最大支持的轮子电机数量
 
 /* 滤波系数设置为1的时候即关闭滤波 */
-#define SPEED_SMOOTH_COEF   0.85f // 最好大于0.85
-#define CURRENT_SMOOTH_COEF 0.9f  // 必须大于0.9
-#define REDUCTION_RATIO     48.0f // 减速比
+#define APS_BUFFER_SIZE    6
+#define APS_LPF_ALPHA      0.5f   // 最好大于0.85
+#define APS_JUMP_THRESHOLD 300.0f // 角速度跳变限制（度/秒）
 
 typedef struct {
     PWM_Init_Config_s pwm_init_config;
@@ -42,6 +44,9 @@ typedef struct
     volatile float linear_speed;          // 线速度，单位：m/s
     uint8_t direction;                    // 旋转方向，0:正转，1:反转
 
+    float aps_buffer[APS_BUFFER_SIZE];
+    uint8_t aps_index;
+
     float total_angle;   // 累计角度，单位：度
     int32_t total_round; // 累计转数
 } WheelMotor_Measurement_s;
@@ -55,11 +60,13 @@ typedef struct
     PWM_Instance *pwm;                      // PWM实例
     TIM_Encoder_Instance *encoder;          // 编码器实例
     GPIO_Instance *gpio_1;                  // GPIO实例
-    Motor_Working_Type_e stop_flag; // 启停标志
+    Motor_Working_Type_e stop_flag;         // 启停标志
 
     Daemon_Instance *daemon;
     uint32_t feed_cnt;     // 用于 DWT 计时
     uint32_t last_tick_ms; // 上一次更新的毫秒时间
+
+    float pwm_out;
 
     float dt; // 更新时间间隔（秒）
 } WheelMotor_Instance;
