@@ -52,14 +52,9 @@ void ChassisInit()
         .encoder_init_config = {
             .htim = &htim5,
         },
-        .gpio_init_config_1 = {
+        .gpio_init_config = {
             .GPIOx     = GPIOE,
             .GPIO_Pin  = GPIO_PIN_7,
-            .pin_state = GPIO_PIN_RESET,
-        },
-        .gpio_init_config_2 = {
-            .GPIOx     = GPIOE,
-            .GPIO_Pin  = GPIO_PIN_8,
             .pin_state = GPIO_PIN_RESET,
         },
     };
@@ -69,8 +64,7 @@ void ChassisInit()
     wheelmotor_config.pwm_init_config.channel     = TIM_CHANNEL_3; // Change the channel for the left motor
     wheelmotor_config.pwm_init_config.is_N        = 0;
     wheelmotor_config.encoder_init_config.htim    = &htim2;
-    wheelmotor_config.gpio_init_config_1.GPIO_Pin = GPIO_PIN_12;
-    wheelmotor_config.gpio_init_config_2.GPIO_Pin = GPIO_PIN_13;
+    wheelmotor_config.gpio_init_config.GPIO_Pin    = GPIO_PIN_12;
     motor_r                                       = WheelMotorInit(&motor_config, &wheelmotor_config); // Initialize the right wheel motor
 
     chassis_cmd_sub    = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));       // Subscribe to the command topic

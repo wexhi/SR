@@ -21,10 +21,12 @@
 #include "motor_task.h"
 #include "daemon.h"
 #include "JY901S.h"
+#include "sensor.h"
 
 osThreadId_t StartRobotTaskHandle;
 osThreadId_t StartLEDTaskHandle;
 osThreadId_t StartMotorTaskHandle;
+osThreadId_t StartSensorTaskHandle;
 osThreadId_t StartDaemonTaskHandle;
 
 const osThreadAttr_t StartRobotTask_attributes = {
@@ -42,6 +44,11 @@ const osThreadAttr_t StartMotorTask_attributes = {
     .stack_size = 1024 * 4, // Multiply by 4 to convert to bytes
     .priority   = (osPriority_t)osPriorityNormal,
 };
+const osThreadAttr_t StartSensorTask_attributes = {
+    .name       = "StartSensorTask",
+    .stack_size = 128 * 4, // Multiply by 4 to convert to bytes
+    .priority   = (osPriority_t)osPriorityNormal,
+};
 const osThreadAttr_t StartDAEMONTASK_attributes = {
     .name       = "StartDAEMONTASK",
     .stack_size = 128 * 4, // Multiply by 4 to convert to bytes
@@ -51,6 +58,7 @@ const osThreadAttr_t StartDAEMONTASK_attributes = {
 void StartRobotTask(void *argument);
 void StartLEDTask(void *argument);
 void StartMotorTask(void *argument);
+void StartSensorTask(void *argument);
 void StartDAEMONTASK(void *argument);
 
 /**
@@ -62,6 +70,7 @@ void OSTaskInit(void)
     StartRobotTaskHandle  = osThreadNew(StartRobotTask, NULL, &StartRobotTask_attributes);
     StartLEDTaskHandle    = osThreadNew(StartLEDTask, NULL, &StartLEDTask_attributes);
     StartMotorTaskHandle  = osThreadNew(StartMotorTask, NULL, &StartMotorTask_attributes);
+    StartSensorTaskHandle = osThreadNew(StartSensorTask, NULL, &StartSensorTask_attributes);
     StartDaemonTaskHandle = osThreadNew(StartDAEMONTASK, NULL, &StartDAEMONTASK_attributes);
 }
 
@@ -117,6 +126,24 @@ void StartMotorTask(void *argument)
         osDelay(2);
     }
     /* USER CODE END StartMotorTask */
+}
+
+/**
+ * @brief The task for the sensor,
+ * this task will be used to control the sensor and read the data.
+ *
+ * @param argument
+ */
+void StartSensorTask(void *argument)
+{
+    /* USER CODE BEGIN StartSensorTask */
+    SensorInit(); // Initialize the sensor instances here if needed
+    /* Infinite loop */
+    for (;;) {
+        SensorTask();
+        osDelay(2);
+    }
+    /* USER CODE END StartSensorTask */
 }
 
 /**

@@ -39,12 +39,9 @@ WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config, WheelMotor_Init
     motor->pwm     = PWMRegister(&wheelmotor_config->pwm_init_config);
     motor->encoder = TIM_Encoder_Register(&wheelmotor_config->encoder_init_config);
 
-    wheelmotor_config->gpio_init_config_1.exti_mode           = EXTI_MODE_NONE;
-    wheelmotor_config->gpio_init_config_2.exti_mode           = EXTI_MODE_NONE;
-    wheelmotor_config->gpio_init_config_1.gpio_model_callback = NULL;
-    wheelmotor_config->gpio_init_config_2.gpio_model_callback = NULL;
-    motor->gpio_1                                             = GPIORegister(&wheelmotor_config->gpio_init_config_1);
-    // motor->gpio_2                                             = GPIORegister(&wheelmotor_config->gpio_init_config_2);
+    wheelmotor_config->gpio_init_config.exti_mode           = EXTI_MODE_NONE; // Updated to use the single GPIO config
+    wheelmotor_config->gpio_init_config.gpio_model_callback = NULL;
+    motor->gpio_1                                         = GPIORegister(&wheelmotor_config->gpio_init_config);
 
     // 初始化测量数据
     motor->measurement.encoder_total_count = 0;

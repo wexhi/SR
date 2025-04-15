@@ -30,8 +30,7 @@
 typedef struct {
     PWM_Init_Config_s pwm_init_config;
     TIM_Encoder_Config encoder_init_config;
-    GPIO_Init_Config_s gpio_init_config_1;
-    GPIO_Init_Config_s gpio_init_config_2;
+    GPIO_Init_Config_s gpio_init_config;
 } WheelMotor_Init_Config_s;
 
 /* 电机反馈数据 */
@@ -55,8 +54,7 @@ typedef struct
     Motor_Type_e motor_type;                // 电机类型
     PWM_Instance *pwm;                      // PWM实例
     TIM_Encoder_Instance *encoder;          // 编码器实例
-    GPIO_Instance *gpio_1;                  // GPIO实例1
-    GPIO_Instance *gpio_2;
+    GPIO_Instance *gpio_1;                  // GPIO实例
     Motor_Working_Type_e stop_flag; // 启停标志
 
     Daemon_Instance *daemon;

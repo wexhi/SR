@@ -103,7 +103,9 @@
           "Module/miniPC",
           "Module/referee",
           "Module/JY901S",
-          "Module/JY901S/wit_c_sdk"
+          "Module/JY901S/wit_c_sdk",
+          "Module/infrared",
+          "Application/sensors"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"
