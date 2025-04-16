@@ -25,11 +25,38 @@
 #define WHEEL_MOTOR_MAX_NUM   2 // 最大支持的轮子电机数量
 
 /* 滤波系数设置为1的时候即关闭滤波 */
-#define APS_BUFFER_SIZE    6
-#define APS_LPF_ALPHA      0.5f   // 最好大于0.85
-#define APS_JUMP_THRESHOLD 300.0f // 角速度跳变限制（度/秒）
+#define APS_BUFFER_SIZE       6
+#define APS_LPF_ALPHA_FORWARD 0.6f
+#define APS_LPF_ALPHA_REVERSE 0.85f
+
+#define APS_JUMP_THRESHOLD    300.0f // 角速度跳变限制（度/秒）
+
+typedef struct
+{
+    Closeloop_Type_e outer_loop_type;              // 最外层的闭环,未设置时默认为最高级的闭环
+    Closeloop_Type_e close_loop_type;              // 使用几个闭环(串级)
+    Motor_Reverse_Flag_e motor_reverse_flag;       // 是否反转
+    Feedback_Reverse_Flag_e feedback_reverse_flag; // 反馈是否反向
+    Feedback_Source_e angle_feedback_source;       // 角度反馈类型
+    Feedback_Source_e speed_feedback_source;       // 速度反馈类型
+    Feedfoward_Type_e feedforward_flag;            // 前馈标志
+    Motor_Ramp_Flag_e angle_ramp_flag;             // 角度斜坡标志
+    Motor_Ramp_Flag_e speed_ramp_flag;             // 速度斜坡标志
+} WheelMotor_Control_Setting_s;
+
+typedef struct
+{
+    float *other_speed_feedback_ptr; // 速度反馈数据指针,单位为angle per sec
+    float *speed_feedforward_ptr;    // 速度前馈数据指针
+
+    float pid_out;
+    PID_Init_Config_s speed_PID_forward;
+    PID_Init_Config_s speed_PID_reverse;
+} WheelMotor_Controller_Init_s;
 
 typedef struct {
+    WheelMotor_Controller_Init_s controller_param_init_config; // 控制器参数初始化配置
+    WheelMotor_Control_Setting_s controller_setting_init_config;
     PWM_Init_Config_s pwm_init_config;
     TIM_Encoder_Config encoder_init_config;
     GPIO_Init_Config_s gpio_init_config;
@@ -53,14 +80,26 @@ typedef struct
 
 typedef struct
 {
-    WheelMotor_Measurement_s measurement;   // 反馈数据
-    Motor_Control_Setting_s motor_settings; // 电机设置
-    Motor_Controller_s motor_controller;    // 电机控制器
-    Motor_Type_e motor_type;                // 电机类型
-    PWM_Instance *pwm;                      // PWM实例
-    TIM_Encoder_Instance *encoder;          // 编码器实例
-    GPIO_Instance *gpio_1;                  // GPIO实例
-    Motor_Working_Type_e stop_flag;         // 启停标志
+    float *other_speed_feedback_ptr;
+    float *speed_feedforward_ptr;
+
+    PID_Instance speed_PID_forward;
+    PID_Instance speed_PID_reverse;
+
+    float pid_ref; // 将会作为每个环的输入和输出顺次通过串级闭环
+    float pid_out;
+} WheelMotor_Controller_s;
+
+typedef struct
+{
+    WheelMotor_Measurement_s measurement;     // 反馈数据
+    WheelMotor_Control_Setting_s motor_settings;   // 电机设置
+    WheelMotor_Controller_s motor_controller; // 电机控制器
+    Motor_Type_e motor_type;                  // 电机类型
+    PWM_Instance *pwm;                        // PWM实例
+    TIM_Encoder_Instance *encoder;            // 编码器实例
+    GPIO_Instance *gpio_1;                    // GPIO实例
+    Motor_Working_Type_e stop_flag;           // 启停标志
 
     Daemon_Instance *daemon;
     uint32_t feed_cnt;     // 用于 DWT 计时
@@ -71,7 +110,7 @@ typedef struct
     float dt; // 更新时间间隔（秒）
 } WheelMotor_Instance;
 
-WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config, WheelMotor_Init_Config_s *wheelmotor_config);
+WheelMotor_Instance *WheelMotorInit(WheelMotor_Init_Config_s *config);
 void WheelMotorEnable(WheelMotor_Instance *motor);
 void WheelMotorStop(WheelMotor_Instance *motor);
 void WheelMotorSetRef(WheelMotor_Instance *motor, float ref);

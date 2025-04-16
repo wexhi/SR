@@ -14,8 +14,9 @@ static Chassis_Upload_Data_s chassis_fetch_data; // The data to fetch from the r
 static Publisher_t *chassis_cmd_pub;             // The publisher for the command topic
 static Subscriber_t *chassis_fetch_sub;          // The subscriber for the command topic
 
-static void RobotStop(void);                 // The function to stop the robot
-static void RobotModeSet(KEY_Instance *key); // The function to set the robot mode
+static void RobotStop(void);                   // The function to stop the robot
+static void RobotEnableSet(KEY_Instance *key); // The function to set the robot mode
+static void RobotModeSet(KEY_Instance *key);
 
 /**
  * @brief 机器人核心控制任务初始化,会被RobotInit()调用
@@ -51,7 +52,7 @@ void RobotCMDTask(void)
 {
     // Get the modules status
     SubGetMessage(chassis_fetch_sub, &chassis_fetch_data); // Get the data from the robot chassis
-    RobotModeSet(key_l);                                   // Set the robot mode based on the key
+    RobotEnableSet(key_l);                                 // Set the robot mode based on the key
 
     // TODO: Get the command from the PC and set the vx and wz values
 
@@ -60,7 +61,7 @@ void RobotCMDTask(void)
     VisionSend(); // Send the data to the PC
 }
 
-static void RobotModeSet(KEY_Instance *key)
+static void RobotEnableSet(KEY_Instance *key)
 {
     // Check the key count to determine the mode
     switch (key->count % 2) {
@@ -70,8 +71,22 @@ static void RobotModeSet(KEY_Instance *key)
         default:
             robot_status                  = ROBOT_READY;    // Set the robot status to run
             chassis_cmd_send.chassis_mode = CHASSIS_NORMAL; // Set the chassis mode to normal
-            chassis_cmd_send.vx           = 0.2f;          // Set the forward speed to 0
-            chassis_cmd_send.wz           = 0.0f;          // Set the angular speed to 0
+            RobotModeSet(key_r);
+            break;
+    }
+}
+
+static void RobotModeSet(KEY_Instance *key)
+{
+    // Check the key count to determine the mode
+    switch (key->count % 2) {
+        case 0:
+            chassis_cmd_send.vx = 0.18f; // Set the forward speed to 0
+            chassis_cmd_send.wz = 0.0f; // Set the angular speed to 0
+            break;
+        default:
+            chassis_cmd_send.vx = -0.18f; // Set the forward speed to -0.2
+            chassis_cmd_send.wz = 0.0f;  // Set the angular speed to 0
             break;
     }
 }

@@ -22,30 +22,45 @@ static float chassis_vx, chassis_wz;           // The forward speed and angular 
 static float wheel_l_speed, wheel_r_speed;     // The speed of the left and right wheels
 static float wheel_l_ref, wheel_r_ref;         // The reference speed of the left and right wheels
 static float test_speed_l, test_speed_r;       // The test speed of the left and right wheels
+
+static void EstimateSpeed(void);
+
 void ChassisInit()
 {
     attitude = INS_Init(); // Initialize the JY901S sensor
     // TODO: Initialize the chassis motors and sensors here
-    Motor_Init_Config_s motor_config = {
-        .motor_type                   = WheelMotor,
+    // Motor_Init_Config_s motor_config = {
+    //     .motor_type                   = WheelMotor,
+    // };
+    WheelMotor_Init_Config_s wheelmotor_config_r = {
         .controller_param_init_config = {
-            .speed_PID = {
-                .Kp     = 0.9f,
-                .Ki     = 0.03f,
-                .Kd     = 0.f,
-                .MaxOut = 750.0f, // max aps
+            .speed_PID_forward = {
+                .Kp = 1.4f,
+                .Ki = 0.01f,
+                .Kd = 0.00002f,
+                // .Derivative_LPF_RC = 0.025,
+                .IntegralLimit = 250.f,
+                .MaxOut        = 750.0f, // max aps
+                .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
             },
-        },
+            .speed_PID_reverse = {
+                .Kp                = 0.04f,
+                .Ki                = 0.0f,
+                .Kd                = 0.0001f,
+                .IntegralLimit     = 30.f,
+                .Derivative_LPF_RC = 0.002f,
+                .MaxOut            = 750.0f,
+                .DeadBand          = 15.f,
+                .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
+            }},
         .controller_setting_init_config = {
             .angle_feedback_source = MOTOR_FEED,
             .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type       = SPEED_LOOP,
             .close_loop_type       = SPEED_LOOP,
             .motor_reverse_flag    = MOTOR_DIRECTION_NORMAL,
-            .feedback_reverse_flag = FEEDBACK_DIRECTION_REVERSE,
+            .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
         },
-    };
-    WheelMotor_Init_Config_s wheelmotor_config = {
         .pwm_init_config = {
             .htim      = &htim1,
             .channel   = TIM_CHANNEL_1,
@@ -65,15 +80,63 @@ void ChassisInit()
         },
     };
 
-    motor_r = WheelMotorInit(&motor_config, &wheelmotor_config); // Initialize the left wheel motor
+    motor_r = WheelMotorInit(&wheelmotor_config_r); // Initialize the left wheel motor
 
-    wheelmotor_config.pwm_init_config.channel                         = TIM_CHANNEL_3; // Change the channel for the left motor
-    wheelmotor_config.pwm_init_config.is_N                            = 0;
-    wheelmotor_config.encoder_init_config.htim                        = &htim2;
-    wheelmotor_config.gpio_init_config.GPIO_Pin                       = GPIO_PIN_12;
-    motor_config.controller_setting_init_config.motor_reverse_flag    = MOTOR_DIRECTION_NORMAL;
-    motor_config.controller_setting_init_config.feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL;                         // Set the feedback direction to normal
-    motor_l                                                           = WheelMotorInit(&motor_config, &wheelmotor_config); // Initialize the right wheel motor
+    WheelMotor_Init_Config_s wheelmotor_config_l = {
+        .controller_param_init_config = {
+            .speed_PID_forward = {
+                .Kp = 1.5f,
+                .Ki = 0.025f,
+                .Kd = 0.00002f,
+                // .Derivative_LPF_RC = 0.025,
+                .IntegralLimit = 300.f,
+                .MaxOut        = 750.0f, // max aps
+                .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
+            },
+            .speed_PID_reverse = {
+                .Kp                = 0.04f,
+                .Ki                = 0.0f,
+                .Kd                = 0.0001f,
+                .IntegralLimit     = 30.f,
+                .Derivative_LPF_RC = 0.002f,
+                .MaxOut            = 750.0f,
+                .DeadBand          = 15.f,
+                .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
+            }},
+        .controller_setting_init_config = {
+            .angle_feedback_source = MOTOR_FEED,
+            .speed_feedback_source = MOTOR_FEED,
+            .outer_loop_type       = SPEED_LOOP,
+            .close_loop_type       = SPEED_LOOP,
+            .motor_reverse_flag    = MOTOR_DIRECTION_NORMAL,
+            .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
+        },
+        .pwm_init_config = {
+            .htim      = &htim1,
+            .channel   = TIM_CHANNEL_3,
+            .period    = 0.02f, // 20ms
+            .dutyratio = 0.f,   // 50% duty cycle
+            .callback  = NULL,  // No callback for now
+            .id        = NULL,  // No ID for now
+            .is_N      = 0,
+        },
+        .encoder_init_config = {
+            .htim = &htim2,
+        },
+        .gpio_init_config = {
+            .GPIOx     = GPIOE,
+            .GPIO_Pin  = GPIO_PIN_12,
+            .pin_state = GPIO_PIN_RESET,
+        },
+    };
+
+    // wheelmotor_config.pwm_init_config.channel                              = TIM_CHANNEL_3; // Change the channel for the left motor
+    // wheelmotor_config.pwm_init_config.is_N                                 = 0;
+    // wheelmotor_config.encoder_init_config.htim                             = &htim2;
+    // wheelmotor_config.gpio_init_config.GPIO_Pin                            = GPIO_PIN_12;
+    // wheelmotor_config.controller_setting_init_config.motor_reverse_flag    = MOTOR_DIRECTION_NORMAL;
+    // wheelmotor_config.controller_setting_init_config.feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL;          // Set the feedback direction to normal
+    motor_l = WheelMotorInit(&wheelmotor_config_l); // Initialize the right wheel motor
 
     test_speed_l = 0.0f; // Initialize the test speed for the left wheel
     test_speed_r = 0.0f; // Initialize the test speed for the right wheel
@@ -115,8 +178,23 @@ void ChassisTask(void)
     wheel_l_ref = (v_l / WHEEL_RADIUS) * RAD_2_DEGREE;
     wheel_r_ref = -(v_r / WHEEL_RADIUS) * RAD_2_DEGREE;
 
-    WheelMotorSetRef(motor_l, wheel_l_ref);    // Set the reference speed for the left wheel
-    WheelMotorSetRef(motor_r, wheel_r_ref);    // Set the reference speed for the right wheel
+    WheelMotorSetRef(motor_l, wheel_l_ref); // Set the reference speed for the left wheel
+    WheelMotorSetRef(motor_r, wheel_r_ref); // Set the reference speed for the right wheel
+
+    // 3. 估算速度
+    EstimateSpeed(); // Estimate the speed of the robot
 
     PubPushMessage(chassis_upload_pub, (void *)&chassis_upload_data); // Publish the upload data
+}
+
+static void EstimateSpeed(void)
+{
+    float v_l_real = motor_l->measurement.linear_speed; // 左轮线速度
+    float v_r_real = -motor_r->measurement.linear_speed; // 右轮线速度
+
+    // 中心线速度（单位 m/s）
+    chassis_upload_data.real_vx = (v_r_real + v_l_real) / 2.0f;
+
+    // 实际角速度 wz（单位 rad/s）
+    chassis_upload_data.real_wz = (v_r_real - v_l_real) / WHEEL_BASE;
 }

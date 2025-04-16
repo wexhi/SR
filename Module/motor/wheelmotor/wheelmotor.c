@@ -14,7 +14,7 @@ static WheelMotor_Instance *wheelmotor_instances[WHEEL_MOTOR_MAX_NUM] = {NULL}; 
 static void WheelMotorLossCallback(void *owner);
 static void DecodeWheelMotor(WheelMotor_Instance *motor);
 
-WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config, WheelMotor_Init_Config_s *wheelmotor_config)
+WheelMotor_Instance *WheelMotorInit(WheelMotor_Init_Config_s *config)
 {
     if (idx >= WHEEL_MOTOR_MAX_NUM)
         return NULL;
@@ -24,24 +24,20 @@ WheelMotor_Instance *WheelMotorInit(Motor_Init_Config_s *config, WheelMotor_Init
         return NULL;
     memset(motor, 0, sizeof(WheelMotor_Instance));
 
-    motor->motor_type     = config->motor_type;
     motor->motor_settings = config->controller_setting_init_config;
 
-    PIDInit(&motor->motor_controller.current_PID, &config->controller_param_init_config.current_PID);
-    PIDInit(&motor->motor_controller.speed_PID, &config->controller_param_init_config.speed_PID);
-    PIDInit(&motor->motor_controller.angle_PID, &config->controller_param_init_config.angle_PID);
-    motor->motor_controller.other_angle_feedback_ptr = config->controller_param_init_config.other_angle_feedback_ptr;
+    PIDInit(&motor->motor_controller.speed_PID_forward, &config->controller_param_init_config.speed_PID_forward);
+    PIDInit(&motor->motor_controller.speed_PID_reverse, &config->controller_param_init_config.speed_PID_reverse); // 你可以传入另一套参数
     motor->motor_controller.other_speed_feedback_ptr = config->controller_param_init_config.other_speed_feedback_ptr;
     motor->motor_controller.speed_feedforward_ptr    = config->controller_param_init_config.speed_feedforward_ptr;
-    motor->motor_controller.current_feedforward_ptr  = config->controller_param_init_config.current_feedforward_ptr;
-
+    
     // 初始化PWM和编码器
-    motor->pwm     = PWMRegister(&wheelmotor_config->pwm_init_config);
-    motor->encoder = TIM_Encoder_Register(&wheelmotor_config->encoder_init_config);
+    motor->pwm     = PWMRegister(&config->pwm_init_config);
+    motor->encoder = TIM_Encoder_Register(&config->encoder_init_config);
 
-    wheelmotor_config->gpio_init_config.exti_mode           = EXTI_MODE_NONE; // Updated to use the single GPIO config
-    wheelmotor_config->gpio_init_config.gpio_model_callback = NULL;
-    motor->gpio_1                                           = GPIORegister(&wheelmotor_config->gpio_init_config);
+    config->gpio_init_config.exti_mode           = EXTI_MODE_NONE; // Updated to use the single GPIO config
+    config->gpio_init_config.gpio_model_callback = NULL;
+    motor->gpio_1                                           = GPIORegister(&config->gpio_init_config);
 
     // 初始化测量数据
     motor->measurement.encoder_total_count = 0;
@@ -72,8 +68,8 @@ void WheelMotorControl(void)
     }
 
     WheelMotor_Instance *motor;
-    Motor_Control_Setting_s *motor_setting;
-    Motor_Controller_s *motor_controller;
+    WheelMotor_Control_Setting_s *motor_setting;
+    WheelMotor_Controller_s *motor_controller;
     WheelMotor_Measurement_s *measurement;
 
     for (size_t i = 0; i < idx; i++) {
@@ -101,8 +97,17 @@ void WheelMotorControl(void)
             if (motor_setting->feedforward_flag & SPEED_FEEDFORWARD && motor_controller->speed_feedforward_ptr != NULL) {
                 ref_speed += *motor_controller->speed_feedforward_ptr;
             }
+            
+            float pid_out;
+            if (ref_speed >= 0) {
+                pid_out = PIDCalculate(&motor_controller->speed_PID_forward, measured_speed, ref_speed);
+            } else {
+                pid_out = PIDCalculate(&motor_controller->speed_PID_reverse, measured_speed, ref_speed);
+            }
 
-            float pid_out = PIDCalculate(&motor_controller->speed_PID, measured_speed, ref_speed);
+            if (motor_setting->feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE) {
+                pid_out = -pid_out;
+            }
 
             if (pid_out < 0) {
                 motor->gpio_1->pin_state = GPIOSet(motor->gpio_1); // 反转
@@ -115,7 +120,6 @@ void WheelMotorControl(void)
             if (duty_ratio < 0.0f) duty_ratio = 0.0f;
 
             motor_controller->pid_out       = pid_out;
-            motor_controller->pid_speed_out = pid_out;
 
             motor->pwm_out = duty_ratio;
             PWMSetDutyRatio(motor->pwm, duty_ratio);
@@ -182,10 +186,16 @@ static void DecodeWheelMotor(WheelMotor_Instance *motor)
     motor->dt = dt_ms / 1000.0f;
     if (motor->dt <= 0.0f) motor->dt = 0.001f; // 防止除以0
 
+    int8_t reverse_flag = 1;
+    if (motor->motor_settings.feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE) {
+        reverse_flag = -1;
+    }
+
     // 当前编码器读数
-    uint16_t curr_encoder = __HAL_TIM_GET_COUNTER(motor->encoder->htim);
-    int16_t delta         = (int16_t)(curr_encoder - last_encoder[id]);
-    last_encoder[id]      = curr_encoder;
+    int16_t curr_encoder = __HAL_TIM_GET_COUNTER(motor->encoder->htim);
+    curr_encoder *= reverse_flag;
+    int16_t delta    = (int16_t)(curr_encoder - last_encoder[id]);
+    last_encoder[id] = curr_encoder;
 
     motor->measurement.encoder = curr_encoder;
     motor->measurement.encoder_total_count += delta;
@@ -202,9 +212,12 @@ static void DecodeWheelMotor(WheelMotor_Instance *motor)
         raw_speed = last_speed + (delta_speed > 0 ? APS_JUMP_THRESHOLD : -APS_JUMP_THRESHOLD);
     }
 
+    // 根据 delta 符号选择滤波系数（运动方向）
+    float lpf_alpha = (delta >= 0) ? APS_LPF_ALPHA_FORWARD : APS_LPF_ALPHA_REVERSE;
+
     // 一阶滤波
-    float lpf_speed = LowPassFilter(last_speed, raw_speed, APS_LPF_ALPHA);
-    // motor->measurement.speed_aps = lpf_speed;
+    float lpf_speed = LowPassFilter(last_speed, raw_speed, lpf_alpha);
+     // motor->measurement.speed_aps = lpf_speed;
     // 滑动平均
     motor->measurement.speed_aps = SlidingAverageFilter(
         motor->measurement.aps_buffer,
