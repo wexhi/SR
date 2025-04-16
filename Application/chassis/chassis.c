@@ -6,6 +6,7 @@
 #include "JY901S.h"
 #include "general_def.h"
 #include "chassis_speed_kf.h"
+#include "controller.h"
 
 #include "bsp_dwt.h"
 #include "arm_math.h"
@@ -15,16 +16,19 @@
 static Chassis_Ctrl_Cmd_s chassis_cmd_recv;       // The command to receive from the robot_cmd
 static Chassis_Upload_Data_s chassis_upload_data; // The data to upload to the robot_cmd
 
-static Publisher_t *chassis_upload_pub;        // The publisher for the upload topic
-static Subscriber_t *chassis_cmd_sub;          // The subscriber for the command topic
-static JY901S_attitude_t *attitude = NULL;     // Added missing variable declaration
-static WheelMotor_Instance *motor_l, *motor_r; // The left and right wheel motors
-static float chassis_vx, chassis_wz;           // The forward speed and angular speed of the robot
-static float wheel_l_ref, wheel_r_ref;         // The reference speed of the left and right wheels
-static float test_speed_l, test_speed_r;       // The test speed of the left and right wheels
-
+static Publisher_t *chassis_upload_pub;                                          // The publisher for the upload topic
+static Subscriber_t *chassis_cmd_sub;                                            // The subscriber for the command topic
+static JY901S_attitude_t *attitude = NULL;                                       // Added missing variable declaration
+static WheelMotor_Instance *motor_l, *motor_r;                                   // The left and right wheel motors
+static float chassis_vx, chassis_wz;                                             // The forward speed and angular speed of the robot
+static float wheel_l_ref, wheel_r_ref;                                           // The reference speed of the left and right wheels
+static float real_vx, real_wz;                                                   // The real speed and angular speed of the robot
+static float wheel_l_speed, wheel_r_speed, wheel_l_speed_aps, wheel_r_speed_aps; // The speed of the left and right wheels
+static float wz_offset;
 static ChassisSpeedKF_t gSpeedKF;
 static uint32_t dwt_last = 0; // Last time for speed estimation
+
+static PID_Instance wz_pid;
 
 static void EstimateSpeed(void);
 
@@ -47,13 +51,13 @@ void ChassisInit()
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
             },
             .speed_PID_reverse = {
-                .Kp                = 0.04f,
+                .Kp                = 0.045f,
                 .Ki                = 0.0f,
                 .Kd                = 0.0001f,
-                .IntegralLimit     = 30.f,
+                .IntegralLimit     = 50.f,
                 .Derivative_LPF_RC = 0.002f,
                 .MaxOut            = 750.0f,
-                .DeadBand          = 15.f,
+                .DeadBand          = 10.f,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
             }},
         .controller_setting_init_config = {
@@ -135,9 +139,6 @@ void ChassisInit()
 
     motor_l = WheelMotorInit(&wheelmotor_config_l); // Initialize the right wheel motor
 
-    test_speed_l = 0.0f; // Initialize the test speed for the left wheel
-    test_speed_r = 0.0f; // Initialize the test speed for the right wheel
-
     ChassisSpeedKF_Init(&gSpeedKF,
                         0.1f,  // q_vx
                         0.1f,  // q_wz
@@ -145,6 +146,17 @@ void ChassisInit()
                         0.05f, // r_wzEnc
                         0.02f  // r_wzImu
     );
+
+    PID_Init_Config_s wz_pid_config = {
+        .Kp                = 10.f,
+        .Ki                = 0.01f,
+        .Kd                = 0.02f,
+        .MaxOut            = 0.8f, // 修正量（角速度）限幅
+        .DeadBand          = 0.01f,
+        .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
+        .IntegralLimit     = 0.5f,
+        .Derivative_LPF_RC = 0.02f};
+    PIDInit(&wz_pid, &wz_pid_config);
 
     chassis_cmd_sub    = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));       // Subscribe to the command topic
     chassis_upload_pub = PubRegister("chassis_upload", sizeof(Chassis_Upload_Data_s)); // Register the upload topic
@@ -172,8 +184,17 @@ void ChassisTask(void)
     // TODO: Get the real speed and battery level from the motors and sensors
 
     // 1. 线速度 -> 左右轮线速度
-    float v_l = chassis_vx - (chassis_wz * WHEEL_BASE / 2.0f);
-    float v_r = chassis_vx + (chassis_wz * WHEEL_BASE / 2.0f);
+
+    // 用陀螺仪实际角速度进行 PID 修正
+    float wz_feedback = real_wz; // 这个已经由 EstimateSpeed() 更新
+    float wz_ref      = chassis_wz;
+    wz_offset         = PIDCalculate(&wz_pid, wz_feedback, wz_ref);
+
+    // 使用修正后的角速度
+    float wz_corrected = chassis_wz + wz_offset;
+
+    float v_l = chassis_vx - (wz_corrected * WHEEL_BASE / 2.0f);
+    float v_r = chassis_vx + (wz_corrected * WHEEL_BASE / 2.0f);
 
     // 2. 线速度 -> 角速度（rad/s）-> deg/s
     wheel_l_ref = (v_l / WHEEL_RADIUS) * RAD_2_DEGREE;
@@ -188,15 +209,15 @@ void ChassisTask(void)
     PubPushMessage(chassis_upload_pub, (void *)&chassis_upload_data); // Publish the upload data
 }
 
-static float real_vx, real_wz; // The real speed and angular speed of the robot
-
 static void EstimateSpeed(void)
 {
     // 1) 得到编码器的线速度、角速度 (左右轮速度合成)
-    float wheel_l_speed = motor_l->measurement.linear_speed;
-    float wheel_r_speed = -motor_r->measurement.linear_speed;
-    float vEnc          = 0.5f * (wheel_l_speed + wheel_r_speed);
-    float wEnc          = (wheel_r_speed - wheel_l_speed) / WHEEL_BASE;
+    wheel_l_speed     = motor_l->measurement.linear_speed;
+    wheel_r_speed     = -motor_r->measurement.linear_speed;
+    wheel_l_speed_aps = motor_l->measurement.speed_aps;
+    wheel_r_speed_aps = -motor_r->measurement.speed_aps;
+    float vEnc        = 0.5f * (wheel_l_speed + wheel_r_speed);
+    float wEnc        = (wheel_r_speed - wheel_l_speed) / WHEEL_BASE;
 
     // 2) 从 IMU 获取陀螺仪Z轴角速度 (若是 JY901S_attitude_t, 取 Gyro[2] 即可)
     //    视情况确认陀螺仪三轴排列

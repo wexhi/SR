@@ -81,12 +81,12 @@ static void RobotModeSet(KEY_Instance *key)
     // Check the key count to determine the mode
     switch (key->count % 2) {
         case 0:
-            chassis_cmd_send.vx = 0.18f; // Set the forward speed to 0
-            chassis_cmd_send.wz = 0.0f; // Set the angular speed to 0
+            chassis_cmd_send.vx = 0.0f; // max forward speed 0.18f
+            chassis_cmd_send.wz = 0.6f; // max rotate speed 0.6f
             break;
         default:
-            chassis_cmd_send.vx = -0.18f; // Set the forward speed to -0.2
-            chassis_cmd_send.wz = 0.0f;  // Set the angular speed to 0
+            chassis_cmd_send.vx = 0.15f; // Set the forward speed to 0
+            chassis_cmd_send.wz = -0.0f;  // Set the angular speed to 0
             break;
     }
 }
