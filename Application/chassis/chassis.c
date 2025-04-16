@@ -5,6 +5,7 @@
 #include "wheelmotor.h"
 #include "JY901S.h"
 #include "general_def.h"
+#include "chassis_speed_kf.h"
 
 #include "bsp_dwt.h"
 #include "arm_math.h"
@@ -19,9 +20,11 @@ static Subscriber_t *chassis_cmd_sub;          // The subscriber for the command
 static JY901S_attitude_t *attitude = NULL;     // Added missing variable declaration
 static WheelMotor_Instance *motor_l, *motor_r; // The left and right wheel motors
 static float chassis_vx, chassis_wz;           // The forward speed and angular speed of the robot
-static float wheel_l_speed, wheel_r_speed;     // The speed of the left and right wheels
 static float wheel_l_ref, wheel_r_ref;         // The reference speed of the left and right wheels
 static float test_speed_l, test_speed_r;       // The test speed of the left and right wheels
+
+static ChassisSpeedKF_t gSpeedKF;
+static uint32_t dwt_last = 0; // Last time for speed estimation
 
 static void EstimateSpeed(void);
 
@@ -130,16 +133,18 @@ void ChassisInit()
         },
     };
 
-    // wheelmotor_config.pwm_init_config.channel                              = TIM_CHANNEL_3; // Change the channel for the left motor
-    // wheelmotor_config.pwm_init_config.is_N                                 = 0;
-    // wheelmotor_config.encoder_init_config.htim                             = &htim2;
-    // wheelmotor_config.gpio_init_config.GPIO_Pin                            = GPIO_PIN_12;
-    // wheelmotor_config.controller_setting_init_config.motor_reverse_flag    = MOTOR_DIRECTION_NORMAL;
-    // wheelmotor_config.controller_setting_init_config.feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL;          // Set the feedback direction to normal
     motor_l = WheelMotorInit(&wheelmotor_config_l); // Initialize the right wheel motor
 
     test_speed_l = 0.0f; // Initialize the test speed for the left wheel
     test_speed_r = 0.0f; // Initialize the test speed for the right wheel
+
+    ChassisSpeedKF_Init(&gSpeedKF,
+                        0.1f,  // q_vx
+                        0.1f,  // q_wz
+                        0.05f, // r_vx
+                        0.05f, // r_wzEnc
+                        0.02f  // r_wzImu
+    );
 
     chassis_cmd_sub    = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));       // Subscribe to the command topic
     chassis_upload_pub = PubRegister("chassis_upload", sizeof(Chassis_Upload_Data_s)); // Register the upload topic
@@ -165,10 +170,6 @@ void ChassisTask(void)
 
     // TODO: Control the motors based on the chassis_vx and chassis_wz values
     // TODO: Get the real speed and battery level from the motors and sensors
-    // wheel_l_speed = motor_l->measurement.linear_speed; // Get the speed of the left wheel
-    // wheel_r_speed = motor_r->measurement.linear_speed;
-    wheel_l_speed = motor_l->measurement.speed_aps; // Get the speed of the left wheel
-    wheel_r_speed = motor_r->measurement.speed_aps;
 
     // 1. 线速度 -> 左右轮线速度
     float v_l = chassis_vx - (chassis_wz * WHEEL_BASE / 2.0f);
@@ -187,14 +188,35 @@ void ChassisTask(void)
     PubPushMessage(chassis_upload_pub, (void *)&chassis_upload_data); // Publish the upload data
 }
 
+static float real_vx, real_wz; // The real speed and angular speed of the robot
+
 static void EstimateSpeed(void)
 {
-    float v_l_real = motor_l->measurement.linear_speed; // 左轮线速度
-    float v_r_real = -motor_r->measurement.linear_speed; // 右轮线速度
+    // 1) 得到编码器的线速度、角速度 (左右轮速度合成)
+    float wheel_l_speed = motor_l->measurement.linear_speed;
+    float wheel_r_speed = -motor_r->measurement.linear_speed;
+    float vEnc          = 0.5f * (wheel_l_speed + wheel_r_speed);
+    float wEnc          = (wheel_r_speed - wheel_l_speed) / WHEEL_BASE;
 
-    // 中心线速度（单位 m/s）
-    chassis_upload_data.real_vx = (v_r_real + v_l_real) / 2.0f;
+    // 2) 从 IMU 获取陀螺仪Z轴角速度 (若是 JY901S_attitude_t, 取 Gyro[2] 即可)
+    //    视情况确认陀螺仪三轴排列
+    float wImu = attitude->Gyro[2] * DEGREE_2_RAD; // 例如Z轴
+    // ...
 
-    // 实际角速度 wz（单位 rad/s）
-    chassis_upload_data.real_wz = (v_r_real - v_l_real) / WHEEL_BASE;
+    // 3) 计算本次 dt
+    float dt = DWT_GetDeltaT(&dwt_last);
+
+    // 4) 调用 KF 更新
+    ChassisSpeedKF_Update(&gSpeedKF, vEnc, wEnc, wImu, dt);
+
+    // 5) 读取滤波结果
+    float vx_f, wz_f;
+    ChassisSpeedKF_GetEstimate(&gSpeedKF, &vx_f, &wz_f);
+
+    // 6) 输出到您需要的位置 (例如 chassis_upload_data 或调试打印)
+    // ...
+    chassis_upload_data.real_vx = vx_f;
+    chassis_upload_data.real_wz = wz_f;
+    real_vx                     = vx_f;
+    real_wz                     = wz_f;
 }
