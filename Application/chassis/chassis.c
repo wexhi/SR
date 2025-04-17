@@ -247,6 +247,7 @@ static void EstimateSpeed(void)
     // ...
     chassis_upload_data.real_vx = vx_f;
     chassis_upload_data.real_wz = wz_f;
+    chassis_upload_data.dt      = dt;
     real_vx                     = vx_f;
     real_wz                     = wz_f;
 }

@@ -21,6 +21,7 @@ typedef struct {
 
     float _last_yaw;
     float _yaw_total;
+    uint8_t yaw_inited;
 
 } JY901S_attitude_t;
 

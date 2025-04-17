@@ -30,7 +30,8 @@ typedef enum {
 // The mode of the chassis
 typedef enum {
     CHASSIS_ZERO_FORCE = 0, // stop mode
-    CHASSIS_NORMAL          // the normal mode of the robot
+    CHASSIS_NORMAL,         // the normal mode of the robot
+    CHASSIS_GOTO_POINT,     // the mode for going to a specific point
 } chassis_mode_e;
 
 // the mode of the cleaning machine
@@ -61,6 +62,7 @@ typedef struct
     float real_vx;       // the real speed of the robot m/s
     float real_wz;       // the real angular speed of the robot rad/s
     float battery_level; // the battery level of the robot in percentage
+    float dt;            // the time interval of the robot in seconds
 } Chassis_Upload_Data_s;
 
 typedef struct

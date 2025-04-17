@@ -1,5 +1,6 @@
 #include "robot_cmd.h"
 #include "robot_def.h"
+#include "goto_controller.h"
 
 #include "key.h"
 #include "message_center.h"
@@ -29,10 +30,12 @@ static float yaw_error_cliif     = 0.0f;
 
 static JY901S_attitude_t *attitude_cmd = NULL;
 
+static Pose2D_t init_pose = {0};               /* 机器人上电原点 (0,0,0°) */
 static void RobotStop(void);                   // The function to stop the robot
 static void RobotEnableSet(KEY_Instance *key); // The function to set the robot mode
 static void RobotModeSet(KEY_Instance *key);
 static void ObstacleAvoidance(void); // The function to set the robot mode to obstacle avoidance
+static void RobotGoTo(void);
 
 /**
  * @brief 机器人核心控制任务初始化,会被RobotInit()调用
@@ -57,6 +60,7 @@ void RobotCMDInit(void)
     key_r                           = KEYRegister(&key_config);
 
     vision_ctrl = VisionInit(&huart1); // 初始化视觉控制
+    GotoCtrl_Init(&init_pose);         /* 初始化控制器 */
 
     // Register the command topic for the robot chassis
     chassis_cmd_pub   = PubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
@@ -70,7 +74,23 @@ void RobotCMDTask(void)
     // Get the modules status
     SubGetMessage(chassis_fetch_sub, &chassis_fetch_data); // Get the data from the robot chassis
     SubGetMessage(sensor_sub, &sensor_fetch_data);         // Get the data from the sensors
+    float dt = chassis_fetch_data.dt;
+    if (chassis_cmd_send.chassis_mode == CHASSIS_GOTO_POINT &&
+        robot_status == ROBOT_READY) // 只有启动车才导航
+    {
+        VelocityCmd_t out = GotoCtrl_Step(chassis_fetch_data.real_vx,
+                                          chassis_fetch_data.real_wz,
+                                          attitude_cmd->YawTotalAngle,
+                                          dt);
 
+        chassis_cmd_send.vx = out.vx;
+        chassis_cmd_send.wz = out.wz;
+
+        /* 到点即停 */
+        if (GotoCtrl_IsArrived()) {
+            chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
+        }
+    }
     RobotEnableSet(key_l); // Set the robot mode based on the key
 
     // TODO: Get the command from the PC and set the vx and wz values
@@ -80,6 +100,8 @@ void RobotCMDTask(void)
     VisionSend(); // Send the data to the PC
 }
 
+static uint8_t goal_executed = 0; /* 0 = 还没跑过 GOTO, 1 = 已执行 */
+
 static void RobotEnableSet(KEY_Instance *key)
 {
     // Check the key count to determine the mode
@@ -88,34 +110,46 @@ static void RobotEnableSet(KEY_Instance *key)
             RobotStop();
             break;
         default:
-            robot_status                  = ROBOT_READY;    // Set the robot status to run
-            chassis_cmd_send.chassis_mode = CHASSIS_NORMAL; // Set the chassis mode to normal
-            RobotModeSet(key_r);
+            robot_status = ROBOT_READY; // Set the robot status to run
+            // RobotModeSet(key_r); // Set the robot mode based on the key,
+            if (goal_executed == 0) { RobotGoTo(); }
             break;
     }
 }
 
-static void RobotModeSet(KEY_Instance *key)
+static void RobotModeSet(KEY_Instance *key_r)
 {
-    // Check the key count to determine the mode
-    switch (key->count % 2) {
-        case 0:
+
+    switch (key_r->count % 2) {
+        case 0: /* NORMAL / 避障 */
+            chassis_cmd_send.chassis_mode = CHASSIS_NORMAL;
             ObstacleAvoidance();
             break;
-        default:
-            chassis_cmd_send.vx = 0.15f; // Set the forward speed to 0
-            chassis_cmd_send.wz = -0.0f; // Set the angular speed to 0
+        case 1: /* 手动直行示例 */
+            chassis_cmd_send.chassis_mode = CHASSIS_NORMAL;
+            chassis_cmd_send.vx           = 0.15f;
+            chassis_cmd_send.wz           = 0.0f;
             break;
     }
+}
+
+/**
+ * @brief Only run once, can not be used with RobotModeSet
+ *
+ */
+static void RobotGoTo(void)
+{
+    chassis_cmd_send.chassis_mode = CHASSIS_GOTO_POINT;
+    GotoCtrl_SetGoal(1.5, 0); // Set the goal to (1, 0)
+    goal_executed = 1;
 }
 
 static void RobotStop(void)
 {
-    // Stop the robot
-    robot_status                  = ROBOT_STOP;         // Set the robot status to stop
-    chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE; // Set the chassis mode to stop
-    chassis_cmd_send.vx           = 0.0f;               // Set the forward speed to 0
-    chassis_cmd_send.wz           = 0.0f;               // Set the angular speed to 0
+    robot_status                  = ROBOT_STOP;
+    chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
+    chassis_cmd_send.vx           = 0.0f;
+    chassis_cmd_send.wz           = 0.0f;
 }
 
 static void ObstacleAvoidance(void)

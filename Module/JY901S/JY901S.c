@@ -22,7 +22,8 @@ JY901S_attitude_t *INS_Init(void)
     if (INS == NULL) {
         INS = (JY901S_Instance *)malloc(sizeof(JY901S_Instance));
         memset(INS, 0, sizeof(JY901S_Instance));
-        INS->is_init = 1;
+        INS->is_init             = 1;
+        INS->attitude.yaw_inited = 0;
     } else {
         return &INS->attitude;
     }
@@ -40,6 +41,14 @@ JY901S_attitude_t *INS_Init(void)
 
 static float JY901S_UnwrapYaw(JY901S_attitude_t *att, float current_yaw)
 {
+    /* 第一次进来：把当前航向当作 0°，不计入累计角 */
+    if (!att->yaw_inited) {
+        att->_last_yaw  = current_yaw;
+        att->_yaw_total = 0.0f;
+        att->yaw_inited = 1;
+        return 0.0f;
+    }
+
     float delta = current_yaw - att->_last_yaw;
 
     if (delta > 180.0f)

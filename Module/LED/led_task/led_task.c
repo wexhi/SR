@@ -39,6 +39,7 @@ void LEDTask(void)
 
     switch (cmd_recv.chassis_mode) {
         case CHASSIS_NORMAL:
+        case CHASSIS_GOTO_POINT:
             LEDOn(led_r);
             LEDOff(led_l);
             break;
