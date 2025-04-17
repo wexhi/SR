@@ -7,6 +7,7 @@
 #include "general_def.h"
 #include "chassis_speed_kf.h"
 #include "controller.h"
+#include "stdbool.h"
 
 #include "bsp_dwt.h"
 #include "arm_math.h"
@@ -24,11 +25,12 @@ static float chassis_vx, chassis_wz;                                            
 static float wheel_l_ref, wheel_r_ref;                                           // The reference speed of the left and right wheels
 static float real_vx, real_wz;                                                   // The real speed and angular speed of the robot
 static float wheel_l_speed, wheel_r_speed, wheel_l_speed_aps, wheel_r_speed_aps; // The speed of the left and right wheels
-static float wz_offset;
 static ChassisSpeedKF_t gSpeedKF;
 static uint32_t dwt_last = 0; // Last time for speed estimation
 
-static PID_Instance wz_pid;
+static PID_Instance yaw_pid;
+static float target_yaw, yaw_error;
+static bool yaw_lock    = false;
 
 static void EstimateSpeed(void);
 
@@ -147,16 +149,16 @@ void ChassisInit()
                         0.02f  // r_wzImu
     );
 
-    PID_Init_Config_s wz_pid_config = {
-        .Kp                = 10.f,
-        .Ki                = 0.01f,
-        .Kd                = 0.02f,
-        .MaxOut            = 0.8f, // 修正量（角速度）限幅
-        .DeadBand          = 0.01f,
-        .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter,
-        .IntegralLimit     = 0.5f,
-        .Derivative_LPF_RC = 0.02f};
-    PIDInit(&wz_pid, &wz_pid_config);
+    PID_Init_Config_s yaw_pid_config = {
+        .Kp            = 0.1f,
+        .Ki            = 0.001f,
+        .Kd            = 0.0005f,
+        .MaxOut        = 1.5f,
+        .IntegralLimit = 2.0f,
+        .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
+        .DeadBand      = 0.1f // 允许小范围偏航不纠正（单位：度）
+    };
+    PIDInit(&yaw_pid, &yaw_pid_config);
 
     chassis_cmd_sub    = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));       // Subscribe to the command topic
     chassis_upload_pub = PubRegister("chassis_upload", sizeof(Chassis_Upload_Data_s)); // Register the upload topic
@@ -185,16 +187,23 @@ void ChassisTask(void)
 
     // 1. 线速度 -> 左右轮线速度
 
+    if (chassis_vx > 0.01f && fabsf(chassis_wz) < 0.01f) {
+        if (!yaw_lock) {
+            target_yaw = attitude->YawTotalAngle; // 锁定初始角度
+            yaw_lock   = true;
+        }
+
+        yaw_error         = target_yaw - attitude->YawTotalAngle;
+        float wz_yaw_correction = PIDCalculate(&yaw_pid, 0.0f, yaw_error); // 目标角度为0误差
+        chassis_wz              = -wz_yaw_correction;
+    } else {
+        yaw_lock = false; // 有旋转指令，不锁定角度
+    }
+
     // 用陀螺仪实际角速度进行 PID 修正
-    float wz_feedback = real_wz; // 这个已经由 EstimateSpeed() 更新
-    float wz_ref      = chassis_wz;
-    wz_offset         = PIDCalculate(&wz_pid, wz_feedback, wz_ref);
 
-    // 使用修正后的角速度
-    float wz_corrected = chassis_wz + wz_offset;
-
-    float v_l = chassis_vx - (wz_corrected * WHEEL_BASE / 2.0f);
-    float v_r = chassis_vx + (wz_corrected * WHEEL_BASE / 2.0f);
+    float v_l = chassis_vx - (chassis_wz * WHEEL_BASE / 2.0f);
+    float v_r = chassis_vx + (chassis_wz * WHEEL_BASE / 2.0f);
 
     // 2. 线速度 -> 角速度（rad/s）-> deg/s
     wheel_l_ref = (v_l / WHEEL_RADIUS) * RAD_2_DEGREE;
