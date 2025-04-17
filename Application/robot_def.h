@@ -13,6 +13,7 @@
 #pragma once
 
 #include "stdint.h"
+#include "stdbool.h"
 
 // #define VISION_USE_VCP // 是否使用虚拟串口
 
@@ -38,6 +39,13 @@ typedef enum {
     CLEANING_ACTIVE    // active cleaning mode
 } cleaning_mode_e;
 
+typedef enum {
+    OBSTACLE_NONE,
+    OBSTACLE_DETECTED,
+    OBSTACLE_TURNING,
+    OBSTACLE_RECOVERY
+} Obstacle_State_e;
+
 /* ----------------CMD Application public the control data---------------- */
 typedef struct {
     // control part
@@ -54,5 +62,11 @@ typedef struct
     float real_wz;       // the real angular speed of the robot rad/s
     float battery_level; // the battery level of the robot in percentage
 } Chassis_Upload_Data_s;
+
+typedef struct
+{
+    // the feedback data of the sensors
+    bool cliff_detected[4]; // 每个通道是否检测到悬崖
+} Sensor_Upload_Data_s;
 
 #pragma pack() // 取消压缩

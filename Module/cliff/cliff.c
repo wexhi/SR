@@ -3,7 +3,7 @@
 #include "string.h"
 #include "bsp_adc.h"
 
-#define SAFE_DISTANCE 0.1f // Safe distance between cliff and ground
+#define SAFE_DISTANCE 0.05f // Safe distance between cliff and ground
 
 static ADC_Instance *left_back_adc, *left_front_adc;
 static ADC_Instance *right_back_adc, *right_front_adc;
@@ -25,18 +25,18 @@ Cliff_Instance *Cliff_Init(void)
 
 void Cliff_Update(void)
 {
-    if (left_back_adc)
-        cliff_data.left_back_voltage = ADC_GetVoltage(left_back_adc);
-    if (left_front_adc)
-        cliff_data.left_front_voltage = ADC_GetVoltage(left_front_adc);
-    if (right_back_adc)
-        cliff_data.right_back_voltage = ADC_GetVoltage(right_back_adc);
-    if (right_front_adc)
-        cliff_data.right_front_voltage = ADC_GetVoltage(right_front_adc);
+    // 读取 ADC 值
+    cliff_data.voltages[0] = ADC_GetVoltage(left_back_adc);
+    cliff_data.voltages[1] = ADC_GetVoltage(left_front_adc);
+    cliff_data.voltages[2] = ADC_GetVoltage(right_front_adc);
+    cliff_data.voltages[3] = ADC_GetVoltage(right_back_adc);
 
-    cliff_data.lb_detect    = cliff_data.left_back_voltage < SAFE_DISTANCE ? 1 : 0;
-    cliff_data.lf_detect    = cliff_data.left_front_voltage < SAFE_DISTANCE ? 1 : 0;
-    cliff_data.rf_detect    = cliff_data.right_front_voltage < SAFE_DISTANCE ? 1 : 0;
-    cliff_data.rb_detect    = cliff_data.right_back_voltage < SAFE_DISTANCE ? 1 : 0;
-    cliff_data.cliff_detect = cliff_data.lb_detect || cliff_data.lf_detect || cliff_data.rf_detect || cliff_data.rb_detect;
+    // 检测悬崖
+    for (int i = 0; i < 4; i++) {
+        if (cliff_data.voltages[i] < SAFE_DISTANCE) {
+            cliff_data.detected[i] = true;
+        } else {
+            cliff_data.detected[i] = false;
+        }
+    }
 }

@@ -2,17 +2,12 @@
 
 #include "stdlib.h"
 #include "bsp_adc.h"
+#include "stdbool.h"
 
 typedef struct {
-    float left_front_voltage;
-    float left_back_voltage;
-    float right_front_voltage;
-    float right_back_voltage;
-    uint8_t lf_detect;
-    uint8_t lb_detect;
-    uint8_t rf_detect;
-    uint8_t rb_detect;
-    uint8_t cliff_detect;
+    float voltages[4]; // 假设有四个ADC通道
+    bool detected[4];  // 每个通道是否检测到悬崖
+    // 0: LB, 1: LF, 2: RF, 3: RB
 } Cliff_Instance;
 
 Cliff_Instance *Cliff_Init(void);

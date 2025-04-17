@@ -30,7 +30,7 @@ static uint32_t dwt_last = 0; // Last time for speed estimation
 
 static PID_Instance yaw_pid;
 static float target_yaw, yaw_error;
-static bool yaw_lock    = false;
+static bool yaw_lock = false;
 
 static void EstimateSpeed(void);
 
@@ -161,7 +161,7 @@ void ChassisInit()
     PIDInit(&yaw_pid, &yaw_pid_config);
 
     chassis_cmd_sub    = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));       // Subscribe to the command topic
-    chassis_upload_pub = PubRegister("chassis_upload", sizeof(Chassis_Upload_Data_s)); // Register the upload topic
+    chassis_upload_pub = PubRegister("chassis_fetch", sizeof(Chassis_Upload_Data_s)); // Register the upload topic
 }
 
 // The core function of the chassis task
@@ -193,11 +193,11 @@ void ChassisTask(void)
             yaw_lock   = true;
         }
 
-        yaw_error         = target_yaw - attitude->YawTotalAngle;
+        yaw_error               = target_yaw - attitude->YawTotalAngle;
         float wz_yaw_correction = PIDCalculate(&yaw_pid, 0.0f, yaw_error); // 目标角度为0误差
         chassis_wz              = -wz_yaw_correction;
     } else {
-        yaw_lock = false; // 有旋转指令，不锁定角度
+        yaw_lock = false; // 有旋转指令，不锁定角度 or RobotStop reset the yaw traget
     }
 
     // 用陀螺仪实际角速度进行 PID 修正
