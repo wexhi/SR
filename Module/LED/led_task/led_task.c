@@ -5,8 +5,10 @@
 #include "robot_def.h"
 
 static LED_Instance *led_r, *led_l;
-static Chassis_Ctrl_Cmd_s cmd_recv; // The command to receive from the robot_cmd
-static Subscriber_t *led_subscriber = NULL;
+static Chassis_Ctrl_Cmd_s cmd_recv;     // The command to receive from the robot_cmd
+static Robot_Status_e robot_status_led; // The status of the robot
+static Subscriber_t *led_subscriber_chassis = NULL;
+static Subscriber_t *led_subscriber_robot   = NULL;
 
 void LEDInit(void)
 {
@@ -29,25 +31,34 @@ void LEDInit(void)
 
     led_l = LEDRegister(&led_config);
     // Register the LED task with the message center
-    led_subscriber = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
+    led_subscriber_chassis = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
+    led_subscriber_robot   = SubRegister("robot_state", sizeof(Robot_Status_e));
 }
 
 void LEDTask(void)
 {
     // Get the command from the robot_cmd
-    SubGetMessage(led_subscriber, &cmd_recv);
+    SubGetMessage(led_subscriber_chassis, &cmd_recv);
+    SubGetMessage(led_subscriber_robot, &robot_status_led);
 
     switch (cmd_recv.chassis_mode) {
         case CHASSIS_NORMAL:
         case CHASSIS_GOTO_POINT:
-            LEDOn(led_r);
-            LEDOff(led_l);
+            LEDOn(led_l);
             break;
         case CHASSIS_ZERO_FORCE:
-            LEDOff(led_r);
             LEDOff(led_l);
             break;
         default:
+            break;
+    }
+
+    switch (robot_status_led) {
+        case ROBOT_READY:
+            LEDOn(led_r);
+            break;
+        default:
+            LEDOff(led_r);
             break;
     }
 }

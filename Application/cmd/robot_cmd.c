@@ -21,6 +21,7 @@ static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // The command to send to the r
 static Chassis_Upload_Data_s chassis_fetch_data; // The data to fetch from the robot chassis
 static Sensor_Upload_Data_s sensor_fetch_data;   // The data to upload from the sensors
 static Publisher_t *chassis_cmd_pub;             // The publisher for the command topic
+static Publisher_t *robot_state_pub;             // The publisher for the robot state
 static Subscriber_t *chassis_fetch_sub;          // The subscriber for the command topic
 static Subscriber_t *sensor_sub;
 
@@ -70,8 +71,10 @@ void RobotCMDInit(void)
     // Register the command topic for the robot chassis
     chassis_cmd_pub   = PubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_fetch_sub = SubRegister("chassis_fetch", sizeof(Chassis_Upload_Data_s));
-    sensor_sub        = SubRegister("sensor_fetch", sizeof(Sensor_Upload_Data_s)); // Register the cliff data topic
-    robot_status      = ROBOT_READY;                                               // Set the robot status to ready
+    robot_state_pub   = PubRegister("robot_state", sizeof(Robot_Status_e));
+    // Register the command topic for the sensors
+    sensor_sub   = SubRegister("sensor_fetch", sizeof(Sensor_Upload_Data_s)); // Register the cliff data topic
+    robot_status = ROBOT_READY;                                               // Set the robot status to ready
 }
 
 void RobotCMDTask(void)
@@ -101,6 +104,8 @@ void RobotCMDTask(void)
     // TODO: Get the command from the PC and set the vx and wz values
 
     PubPushMessage(chassis_cmd_pub, (void *)&chassis_cmd_send); // Publish the command to the robot chassis
+    PubPushMessage(robot_state_pub, (void *)&robot_status);     // Publish the robot state to the PC
+
     // TODO: Publish the data to the PC
     float vx, wz, ax, ay, az;
     vx         = chassis_fetch_data.real_vx;
@@ -132,8 +137,12 @@ static void RobotEnableSet(KEY_Instance *key)
             break;
         default:
             robot_status = ROBOT_READY; // Set the robot status to run
-            RobotModeSet(key_r);        // Set the robot mode based on the key,
+
+            /***** Only Select one of the below three options  *****/
+
+            // RobotModeSet(key);           // Set the robot mode based on the key,
             // if (goal_executed == 0) { RobotGoTo(); }
+            VisionControl();
             break;
     }
 }
@@ -213,7 +222,6 @@ static void ObstacleAvoidance(void)
             break;
     }
 }
-
 
 static void VisionControl(void)
 {
