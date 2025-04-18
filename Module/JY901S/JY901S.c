@@ -160,8 +160,8 @@ static void JY901S_Parsedata(void)
                 MAP_AXIS(INS->attitude.Angle, eul_raw);
 
                 INS->attitude.Roll_Angle  = INS->attitude.Angle[0];
-                INS->attitude.Yaw_Angle   = INS->attitude.Angle[1];
-                INS->attitude.Pitch_Angle = INS->attitude.Angle[2];
+                INS->attitude.Yaw_Angle   = INS->attitude.Angle[2];
+                INS->attitude.Pitch_Angle = INS->attitude.Angle[1];
                 INS->attitude.YawTotalAngle =
                     JY901S_UnwrapYaw(&INS->attitude, INS->attitude.Yaw_Angle);
                 break;
