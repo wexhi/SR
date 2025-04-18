@@ -28,9 +28,6 @@ static int cliff_trigger_idx     = -1; // 触发的是哪个传感器
 static float rotate_target_angle = 0.0f;
 static float yaw_start           = 0.0f;
 static float yaw_error_cliif     = 0.0f;
-static float yaw_zero            = 0.0f;         /* 上电时的原始 Yaw_Angle */
-static Quaternion_f q_offset     = {1, 0, 0, 0}; /* 绕 Z 轴 -yaw_zero 的旋转 */
-static Quaternion_f q_adj;
 static float norm; // Check the quaternion norm
 
 static JY901S_attitude_t *attitude_cmd = NULL;
@@ -41,8 +38,7 @@ static void RobotEnableSet(KEY_Instance *key); // The function to set the robot 
 static void RobotModeSet(KEY_Instance *key);
 static void ObstacleAvoidance(void); // The function to set the robot mode to obstacle avoidance
 static void RobotGoTo(void);
-static inline Quaternion_f quat_mul(const Quaternion_f *a,
-                                    const Quaternion_f *b);
+
 static void VisionControl(void);
 
 /**
@@ -52,10 +48,6 @@ static void VisionControl(void);
 void RobotCMDInit(void)
 {
     attitude_cmd = INS_Init(); // Initialize the JY901S sensor
-
-    yaw_zero   = attitude_cmd->Yaw_Angle;         // 初始航向(磁北)
-    float half = -yaw_zero * 0.5f * DEGREE_2_RAD; // 负号代表逆转
-    q_offset   = (Quaternion_f){cosf(half), 0.f, 0.f, sinf(half)};
 
     // Initialize the key instances
     KEY_Config_s key_config = {
@@ -111,22 +103,20 @@ void RobotCMDTask(void)
     PubPushMessage(chassis_cmd_pub, (void *)&chassis_cmd_send); // Publish the command to the robot chassis
     // TODO: Publish the data to the PC
     float vx, wz, ax, ay, az;
-    vx                 = chassis_fetch_data.real_vx;
-    wz                 = chassis_fetch_data.real_wz;
-    Quaternion_f q_raw = {attitude_cmd->Quaternion[0],
-                          attitude_cmd->Quaternion[1],
-                          attitude_cmd->Quaternion[2],
-                          attitude_cmd->Quaternion[3]};
-    q_adj              = quat_mul(&q_offset, &q_raw);
+    vx         = chassis_fetch_data.real_vx;
+    wz         = chassis_fetch_data.real_wz;
+    float q[4] = {attitude_cmd->Quaternion[0],
+                  +attitude_cmd->Quaternion[1],
+                  +attitude_cmd->Quaternion[2],
+                  +attitude_cmd->Quaternion[3]};
 
-    float q[4] = {q_adj.w, q_adj.x, q_adj.y, q_adj.z};
-    ax         = attitude_cmd->Accel[0];
-    ay         = attitude_cmd->Accel[1];
-    az         = attitude_cmd->Accel[2];
+    ax = attitude_cmd->Accel[0];
+    ay = attitude_cmd->Accel[1];
+    az = attitude_cmd->Accel[2];
 
-    norm = sqrtf(q_adj.w * q_adj.w + q_adj.x * q_adj.x +
-                 q_adj.y * q_adj.y + q_adj.z * q_adj.z); // Check the quaternion norm
-    VisionValueSet(vx, wz, q, ax, ay, az);               // Send the data to the PC
+    norm = sqrtf(q[0] * q[0] + q[1] * q[1] +
+                 +q[2] * q[2] + q[3] * q[3]); // Check the quaternion norm
+    VisionValueSet(vx, wz, q, ax, ay, az);    // Send the data to the PC
 
     VisionSend(); // Send the data to the PC
 }
@@ -224,20 +214,10 @@ static void ObstacleAvoidance(void)
     }
 }
 
-static inline Quaternion_f quat_mul(const Quaternion_f *a,
-                                    const Quaternion_f *b)
-{
-    Quaternion_f o;
-    o.w = a->w * b->w - a->x * b->x - a->y * b->y - a->z * b->z;
-    o.x = a->w * b->x + a->x * b->w + a->y * b->z - a->z * b->y;
-    o.y = a->w * b->y - a->x * b->z + a->y * b->w + a->z * b->x;
-    o.z = a->w * b->z + a->x * b->y - a->y * b->x + a->z * b->w;
-    return o;
-}
 
 static void VisionControl(void)
 {
-    if (fabsf(vision_ctrl->vx) < 0.01 && fabsf(vision_ctrl->wz )< 0.01) {
+    if (fabsf(vision_ctrl->vx) < 0.01 && fabsf(vision_ctrl->wz) < 0.01) {
         chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
     } else {
         chassis_cmd_send.chassis_mode = CHASSIS_NORMAL;

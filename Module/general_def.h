@@ -14,4 +14,6 @@
 #define RPM_2_ANGLE_PER_SEC 6.0f         // ×360°/60sec
 #define RPM_2_RAD_PER_SEC   0.104719755f // ×2pi/60sec
 
+#define M_PI_2              1.57079632679489661923
+
 #endif // !GENERAL_DEF_H
