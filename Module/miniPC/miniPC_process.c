@@ -46,6 +46,16 @@ static void VisionOfflineCallback(void *id)
 #endif // !VISION_USE_UART
 }
 
+void VisionValueSet(float vx, float wz, float *q, float ax, float ay, float az)
+{
+    vision_instance->send_data->real_vx = vx;
+    vision_instance->send_data->real_wz = wz;
+    memcpy(vision_instance->send_data->q, q, sizeof(float) * 4);
+    vision_instance->send_data->ax = ax;
+    vision_instance->send_data->ay = ay;
+    vision_instance->send_data->az = az;
+}
+
 /**
  * @brief 发送数据处理函数
  *
@@ -55,16 +65,22 @@ static void VisionOfflineCallback(void *id)
  */
 static void SendProcess(Vision_Send_s *send, uint8_t *tx_buff)
 {
-    /* 发送帧头，目标颜色，是否重置等数据 */
     tx_buff[0] = send->header;
-    memcpy(&tx_buff[1], &send->real_vx, sizeof(float));
-    memcpy(&tx_buff[5], &send->real_wz, sizeof(float));
-    memcpy(&tx_buff[9], &send->q, sizeof(send->q));
 
-    /* 发送校验位 */
-    send->checksum = Get_CRC16_Check_Sum(&tx_buff[0], sizeof(Vision_Send_s) - 3u, CRC_INIT);
-    memcpy(&tx_buff[sizeof(Vision_Send_s) - 3u], &send->checksum, 2);
-    memcpy(&tx_buff[sizeof(Vision_Send_s) - 1u], &send->tail, 1);
+    memcpy(&tx_buff[1], &send->real_vx, sizeof(float)); // 1‑4
+    memcpy(&tx_buff[5], &send->real_wz, sizeof(float)); // 5‑8
+    memcpy(&tx_buff[9], &send->q, sizeof(send->q));     // 9‑24
+
+    /* ===== 新增三行 ===== */
+    memcpy(&tx_buff[25], &send->ax, sizeof(float)); // 25‑28
+    memcpy(&tx_buff[29], &send->ay, sizeof(float)); // 29‑32
+    memcpy(&tx_buff[33], &send->az, sizeof(float)); // 33‑36
+    /* ==================== */
+
+    /* 校验位覆盖 0‑36 共 37 字节 */
+    send->checksum = Get_CRC16_Check_Sum(tx_buff, sizeof(Vision_Send_s) - 3u, CRC_INIT);
+    memcpy(&tx_buff[sizeof(Vision_Send_s) - 3u], &send->checksum, 2); // 37‑38
+    memcpy(&tx_buff[sizeof(Vision_Send_s) - 1u], &send->tail, 1);     // 39
 }
 
 /**

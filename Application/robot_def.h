@@ -71,4 +71,8 @@ typedef struct
     bool cliff_detected[4]; // 每个通道是否检测到悬崖
 } Sensor_Upload_Data_s;
 
+typedef struct {
+    float w, x, y, z;
+} Quaternion_f;
+
 #pragma pack() // 取消压缩

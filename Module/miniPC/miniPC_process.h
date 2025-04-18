@@ -19,9 +19,7 @@
 #define VISION_SEND_HEADER 0x5Au // 视觉发送数据帧头
 #define VISION_SEND_TAIL   0xAAu // 视觉发送数据帧尾
 
-
 // #pragma pack(1) // 1字节对齐
-
 
 /* 视觉通信初始化接收结构体 */
 typedef struct
@@ -33,8 +31,8 @@ typedef struct
 /* 视觉通信初始化发送结构体 */
 typedef struct
 {
-    uint8_t header;       // 头帧校验位
-    uint8_t tail;         // 尾帧校验位
+    uint8_t header; // 头帧校验位
+    uint8_t tail;   // 尾帧校验位
 } Vision_Send_Init_Config_s;
 
 /* 视觉实例初始化配置结构体 */
@@ -61,11 +59,14 @@ typedef struct
     uint8_t header;
     float real_vx;
     float real_wz;
-    float q[4];        // the quaternion
+    float q[4]; // the quaternion
+    float ax;
+    float ay;
+    float az;
     uint16_t checksum; // crc16校验位 https://blog.csdn.net/ydyuse/article/details/105395368
     uint8_t tail;      // 尾帧校验位
 } Vision_Send_s;
-#pragma pack() // 取消1字节对齐
+// #pragma pack() // 取消1字节对齐
 /* 视觉通信模块实例 */
 typedef struct
 {
@@ -74,7 +75,7 @@ typedef struct
     USART_Instance *usart;    // 串口实例指针
 } Vision_Instance;
 
-// #pragma pack() // 取消1字节对齐
+#pragma pack() // 取消1字节对齐
 
 /**
  * @brief 用于注册一个视觉接收数据结构体,返回一个视觉接收数据结构体指针
@@ -107,6 +108,5 @@ Vision_Recv_s *VisionInit(UART_HandleTypeDef *video_usart_handle);
  */
 void VisionSend();
 
-void VisionSetReset(uint8_t is_reset);
-
+void VisionValueSet(float vx, float wz, float *q, float ax, float ay, float az);
 #endif // MINIPC_PROCESS_H
